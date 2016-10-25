@@ -1,0 +1,12 @@
+1 Profile,可以理解为一种规范，一种通信协议，profile存在于从机中。SIG规定了一些profile，如心率计，防丢器，HID OVER GATT等等。每个Profile中都包含多个Service。每个Service代表从机的一个能力。
+
+2、Service可以理解为一个服务，在BLE从机中，可以有多个服务，譬如系统电量信息服务，系统信息服务，每个Service又包含多个Characteristic。每个具体的Characteristic值才是BLE通信的主体。比如当前电量是80%，会通过电量的Characteristic特征值存在从机的Profile里面，这样，主机就可以通过这个Characteristic值获得从机的80%电量值。
+
+3、Characteristic BLE主从机通信均通过Characteristic实现。 可以理解为一个标签，通过这个标签可以获取或写入想要的内容。
+
+4、UUID  唯一识别码。上述Service 和 Characteristic 均需要通过一个UUID来识别。UUID为128，但是在BLE中，UUID通常用16位，也就是两个字节来替代。16位UUID和128位UUID可以相互转换，具体如何实现需参考SIG文档。
+
+
+综上，每个从机均由一个或若干个profile构成，不管是simpleprofile还是防丢器Profile等，而每个profile又由一些列Service组成，每个Service包含若干个Characteristic。 主机和从机之间的通信均是由 Characteristic实现。
+
+
