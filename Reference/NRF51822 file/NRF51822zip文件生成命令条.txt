@@ -1,0 +1,1 @@
+nrfutil.exe dfu genpkg --application nrf51822_s110.bin --application-version 0xFFFFFFFF --dev-revision 0xFFFF --dev-type 0xFFFF --sd-req 100 nrf51822_s110.zip
