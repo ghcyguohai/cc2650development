@@ -21,18 +21,21 @@ Target DLL:      Segger\JL2CM3.dll V2.99.20.0
 Dialog DLL:      TARMCM1.DLL V1.10.0.0
  
 <h2>Project:</h2>
-C:\Users\dell\Desktop\SVN_Repository\branches\nRF51822sdk\Bluetooth_uart-master\examples\ble_peripheral\ble_app_uart\pca10028\s110\arm5_no_packs\ble_app_uart_s110_pca10028.uvprojx
+C:\Users\dell\Desktop\cc2650development.git\trunk\nrf51822\Bluetooth_uart-master\examples\ble_peripheral\ble_app_uart\pca10028\s110\arm5_no_packs\ble_app_uart_s110_pca10028.uvprojx
 Project File Date:  07/17/2017
 
 <h2>Output:</h2>
 *** Using Compiler 'V5.06 update 2 (build 183)', folder: 'D:\MDK\ARM\ARMCC\Bin'
 Build target 'nrf51422_xxac_s110'
-compiling Ble_FirmwareInfo.c...
+compiling main.c...
+..\..\..\main.c(323): warning:  #177-D: function "sleep_mode_enter" was declared but never referenced
+  static void sleep_mode_enter(void)
+..\..\..\main.c: 1 warning, 0 errors
 linking...
-Program Size: Code=29592 RO-data=452 RW-data=272 ZI-data=6504  
+Program Size: Code=26800 RO-data=392 RW-data=272 ZI-data=6392  
 FromELF: creating hex file...
 After Build - User command #1: D:\MDK\ARM\ARMCC\bin\fromelf.exe --bin -o  ./_build/nrf51822_s110.bin  ./_build/nrf51822_s110.axf
-".\_build\nrf51822_s110.axf" - 0 Error(s), 0 Warning(s).
+".\_build\nrf51822_s110.axf" - 0 Error(s), 1 Warning(s).
 
 <h2>Software Packages used:</h2>
 
@@ -49,7 +52,7 @@ Package Vendor: NordicSemiconductor
    * Component: Startup Version: 8.2.0
 
 <h2>Collection of Component include folders:</h2>
-  C:\Users\dell\Desktop\SVN_Repository\branches\nRF51822sdk\Bluetooth_uart-master\examples\ble_peripheral\ble_app_uart\pca10028\s110\arm5_no_packs\RTE
+  C:\Users\dell\Desktop\cc2650development.git\trunk\nrf51822\Bluetooth_uart-master\examples\ble_peripheral\ble_app_uart\pca10028\s110\arm5_no_packs\RTE
   D:\MDK\ARM\PACK\ARM\CMSIS\4.5.0\CMSIS\Include
   D:\MDK\ARM\PACK\NordicSemiconductor\nRF_DeviceFamilyPack\8.2.0\Device\Include
   D:\MDK\ARM\PACK\NordicSemiconductor\nRF_DeviceFamilyPack\8.9.0\Device\Include
@@ -62,7 +65,7 @@ Package Vendor: NordicSemiconductor
       Source file:   Device\Source\arm\arm_startup_nrf51.s
       Source file:   Device\Source\system_nrf51.c
       Include file:  Device\Include\system_nrf51.h
-Build Time Elapsed:  00:00:01
+Build Time Elapsed:  00:00:00
 </pre>
 </body>
 </html>

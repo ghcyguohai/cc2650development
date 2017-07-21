@@ -23,6 +23,9 @@
 #include <stdarg.h>
 #include "Ble_FirmwareInfo.h"
 
+//#define DEBUG_PRINTF
+
+
 
 #define 	ATCMD_PINNO                (28)
 #define 	BLE_CONNECTSTATUS_PINNO    (29u)
@@ -39,6 +42,7 @@
 
 
 extern BLE_CFG_FIRMWAREINFO          ble_cfg_firmwareinfo;
+extern uint8_t ble_con_flag;
 
 
 
@@ -73,7 +77,8 @@ void ATcmd_Pin_Configuration(void)
 
 uint8_t  Check_ATcmd_Pin_Level  (void)
 {
-        return  nrf_gpio_pin_read(ATCMD_PINNO);
+      //  return  nrf_gpio_pin_read(ATCMD_PINNO);
+    return ble_con_flag;
 }
 
 void    Ble_ConnectStatusPin_Configuration(void)
@@ -153,7 +158,7 @@ void    Ble_ATcmd_LENAMEReply_Handler(uint8_t* pbuf, uint8_t len)
         ssid_len=temp_len+12+sprintf((char*)&temp[temp_len+12],"\r\n");
         for(i=0;i<ssid_len;i++)
         {
-           app_uart_put(temp[i]);
+           while(app_uart_put(temp[i]) != NRF_SUCCESS); 
         }
 }
 
@@ -207,8 +212,9 @@ void    Ble_ATcmd_QueyURATE_Handler(uint8_t* pbuf, uint8_t len)
 
 void uart_printf(char* fmt,...)
 {
+  #ifdef DEBUG_PRINTF
+    
     uint8_t i=0;
-
     va_list ap;
     char string[128];
     va_start(ap, fmt);
@@ -219,4 +225,6 @@ void uart_printf(char* fmt,...)
         i++;
     }
     va_end(ap);
+    
+  #endif
 }

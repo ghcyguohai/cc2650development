@@ -62,12 +62,12 @@
 #define APP_TIMER_PRESCALER             0                                           /**< Value of the RTC1 PRESCALER register. */
 #define APP_TIMER_OP_QUEUE_SIZE         4                                           /**< Size of timer operation queues. */
 
-//连接最小最大间隔20~75ms
-#define MIN_CONN_INTERVAL               MSEC_TO_UNITS(20, UNIT_1_25_MS)             /**< Minimum acceptable connection interval (20 ms), Connection interval uses 1.25 ms units. */
-#define MAX_CONN_INTERVAL               MSEC_TO_UNITS(75, UNIT_1_25_MS)             /**< Maximum acceptable connection interval (75 ms), Connection interval uses 1.25 ms units. */
+////////连接最小最大间隔20~75ms
+//#define MIN_CONN_INTERVAL               MSEC_TO_UNITS(20, UNIT_1_25_MS)             /**< Minimum acceptable connection interval (20 ms), Connection interval uses 1.25 ms units. */
+//#define MAX_CONN_INTERVAL               MSEC_TO_UNITS(75, UNIT_1_25_MS)             /**< Maximum acceptable connection interval (75 ms), Connection interval uses 1.25 ms units. */
 
-//#define MIN_CONN_INTERVAL               MSEC_TO_UNITS(8, UNIT_1_25_MS)  
-//#define MAX_CONN_INTERVAL               MSEC_TO_UNITS(10, UNIT_1_25_MS)  
+#define MIN_CONN_INTERVAL               MSEC_TO_UNITS(8, UNIT_1_25_MS)  
+#define MAX_CONN_INTERVAL               MSEC_TO_UNITS(75, UNIT_1_25_MS)  
 //若没有数据，可以跳过多少个间隔
 #define SLAVE_LATENCY                   0                                           /**< Slave latency. */
 //连接后超时时间
@@ -96,6 +96,7 @@ static uint16_t                         m_conn_handle = BLE_CONN_HANDLE_INVALID;
 static  ble_uuid_t                        m_adv_uuids[] = {{BLE_UUID_NUS_SERVICE, NUS_SERVICE_UUID_TYPE}};  /**< Universally unique service identifier. */
 const   nrf_drv_timer_t                   TIMER_UART = NRF_DRV_TIMER_INSTANCE(1);
 extern  BLE_CFG_FIRMWAREINFO              ble_cfg_firmwareinfo;
+
 
 
 static void advertising_stop(void);
@@ -273,7 +274,6 @@ static void on_conn_params_evt(ble_conn_params_evt_t * p_evt)
 {
     uint32_t err_code;
     
-    LEDS_INVERT(BSP_LED_2_MASK);
     if(p_evt->evt_type == BLE_CONN_PARAMS_EVT_FAILED)
     {
         err_code = sd_ble_gap_disconnect(m_conn_handle, BLE_HCI_CONN_INTERVAL_UNACCEPTABLE);
@@ -307,7 +307,7 @@ static void conn_params_init(void)
     cp_init.next_conn_params_update_delay  = NEXT_CONN_PARAMS_UPDATE_DELAY;
     cp_init.max_conn_params_update_count   = MAX_CONN_PARAMS_UPDATE_COUNT;
     cp_init.start_on_notify_cccd_handle    = BLE_GATT_HANDLE_INVALID;
-    cp_init.disconnect_on_fail             = false;
+    cp_init.disconnect_on_fail             = true;
     cp_init.evt_handler                    = on_conn_params_evt;    //每次连接调用的处理函数
     cp_init.error_handler                  = conn_params_error_handler;
     
@@ -354,7 +354,7 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
         
             break;
         case BLE_ADV_EVT_IDLE:
-            sleep_mode_enter();
+           // sleep_mode_enter();
             break;
         default: 
             break;
@@ -368,19 +368,19 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
  */
 static void on_ble_evt(ble_evt_t * p_ble_evt)
 {
-    uint32_t                         err_code;
+    uint32_t                         err_code=NRF_SUCCESS;
     //协议栈事件
     switch (p_ble_evt->header.evt_id)
     {
         case BLE_GAP_EVT_CONNECTED:
-            err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
             Ble_ConnectStatus_SetHigh();
+            LEDS_ON(BSP_LED_2_MASK);
             APP_ERROR_CHECK(err_code);
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
             break;
             
         case BLE_GAP_EVT_DISCONNECTED:
-            err_code = bsp_indication_set(BSP_INDICATE_IDLE);
+            LEDS_OFF(BSP_LED_2_MASK);
             Ble_ConnectStatus_SetLow();
             APP_ERROR_CHECK(err_code);
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
@@ -423,7 +423,6 @@ static void ble_evt_dispatch(ble_evt_t * p_ble_evt)
     ble_nus_on_ble_evt(&m_nus, p_ble_evt);
     on_ble_evt(p_ble_evt);
     ble_advertising_on_ble_evt(p_ble_evt);
-   // bsp_btn_ble_on_ble_evt(p_ble_evt);
     ble_dfu_on_ble_evt(&m_dfus, p_ble_evt);
     Ble_tx_complete_handler(p_ble_evt);
 }
@@ -469,8 +468,7 @@ void timer_event_handler(nrf_timer_event_t event_type, void* p_context)
     uint8_t len,temp[32]={0};
 	switch(event_type)
 	{
-        case NRF_TIMER_EVENT_COMPARE0:      
-             LEDS_INVERT(BSP_LED_0_MASK);	 
+        case NRF_TIMER_EVENT_COMPARE0:      	 
           
              if(Check_ATcmd_Pin_Level()==0)  // 0: cmd_mode
              {

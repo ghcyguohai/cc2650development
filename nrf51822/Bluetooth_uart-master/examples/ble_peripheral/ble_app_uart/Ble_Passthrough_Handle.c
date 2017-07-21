@@ -16,7 +16,7 @@ extern const nrf_drv_timer_t TIMER_UART;
 
 BLE_CONNECT_STATUS Ble_Con_Status=BLE_CONNECT_DISCONNECTED;
 
-static uint8_t ble_con_flag=0;
+uint8_t ble_con_flag=0;
 static uint8_t tx_count=0;
 
 static uint8_t ble_passthrough_rxbuf[BLE_PASSTHROUGH_BUF_SIZE]={0};
@@ -156,7 +156,7 @@ void Ble_tx_complete_handler(ble_evt_t * p_ble_evt)
                 CounterReset_UartTimer();
                 Ble_Con_Status=BLE_CONNECT_TRANSMIT_COMPELE;
                 Ble_Send();
-               // Test_Pin_Invert();
+                Test_Pin_Invert();
         break;
         
         default:

@@ -331,16 +331,16 @@ ARM Macro Assembler    Page 6
 
 Command Line: --debug --xref --diag_suppress=9931 --cpu=Cortex-M0 --apcs=interw
 ork --depend=.\_build\arm_startup_nrf51.d -o.\_build\arm_startup_nrf51.o -IC:\U
-sers\dell\Desktop\SVN_Repository\branches\nRF51822sdk\Bluetooth_uart-master\exa
-mples\ble_peripheral\ble_app_uart\pca10028\s110\arm5_no_packs\RTE -ID:\MDK\ARM\
-PACK\ARM\CMSIS\4.5.0\CMSIS\Include -ID:\MDK\ARM\PACK\NordicSemiconductor\nRF_De
-viceFamilyPack\8.2.0\Device\Include -ID:\MDK\ARM\PACK\NordicSemiconductor\nRF_D
-eviceFamilyPack\8.9.0\Device\Include --predefine="__MICROLIB SETA 1" --predefin
-e="__UVISION_VERSION SETA 520" --predefine="_RTE_ SETA 1" --predefine="NRF51 SE
-TA 1" --predefine="BLE_STACK_SUPPORT_REQD SETA 1" --predefine="BOARD_PCA10028 S
-ETA 1" --predefine="S110 SETA 1" --predefine="NRF51 SETA 1" --predefine="SOFTDE
-VICE_PRESENT SETA 1" --predefine="SWI_DISABLE0 SETA 1" --list=.\_build\arm_star
-tup_nrf51.lst RTE\Device\nRF51422_xxAC\arm_startup_nrf51.s
+sers\dell\Desktop\cc2650development.git\trunk\nrf51822\Bluetooth_uart-master\ex
+amples\ble_peripheral\ble_app_uart\pca10028\s110\arm5_no_packs\RTE -ID:\MDK\ARM
+\PACK\ARM\CMSIS\4.5.0\CMSIS\Include -ID:\MDK\ARM\PACK\NordicSemiconductor\nRF_D
+eviceFamilyPack\8.2.0\Device\Include -ID:\MDK\ARM\PACK\NordicSemiconductor\nRF_
+DeviceFamilyPack\8.9.0\Device\Include --predefine="__MICROLIB SETA 1" --predefi
+ne="__UVISION_VERSION SETA 520" --predefine="_RTE_ SETA 1" --predefine="NRF51 S
+ETA 1" --predefine="BLE_STACK_SUPPORT_REQD SETA 1" --predefine="BOARD_PCA10028 
+SETA 1" --predefine="S110 SETA 1" --predefine="NRF51 SETA 1" --predefine="SOFTD
+EVICE_PRESENT SETA 1" --predefine="SWI_DISABLE0 SETA 1" --list=.\_build\arm_sta
+rtup_nrf51.lst RTE\Device\nRF51422_xxAC\arm_startup_nrf51.s
 
 
 
