@@ -307,7 +307,7 @@ static void conn_params_init(void)
     cp_init.next_conn_params_update_delay  = NEXT_CONN_PARAMS_UPDATE_DELAY;
     cp_init.max_conn_params_update_count   = MAX_CONN_PARAMS_UPDATE_COUNT;
     cp_init.start_on_notify_cccd_handle    = BLE_GATT_HANDLE_INVALID;
-    cp_init.disconnect_on_fail             = true;
+    cp_init.disconnect_on_fail             = false;
     cp_init.evt_handler                    = on_conn_params_evt;    //每次连接调用的处理函数
     cp_init.error_handler                  = conn_params_error_handler;
     
@@ -466,10 +466,19 @@ extern uint8_t startup_send_flag;
 void timer_event_handler(nrf_timer_event_t event_type, void* p_context)
 {
     uint8_t len,temp[32]={0};
+    static uint16_t  time_counter=0;
 	switch(event_type)
 	{
         case NRF_TIMER_EVENT_COMPARE0:      	 
           
+            time_counter++;
+        
+            if(time_counter>100)
+            {
+                time_counter=0;
+                 LEDS_INVERT(BSP_LED_0_MASK);
+            }
+               
              if(Check_ATcmd_Pin_Level()==0)  // 0: cmd_mode
              {
                  len=Ble_TxFifo_Datalen();
@@ -642,6 +651,7 @@ static void board_init(void)
 {
     LEDS_CONFIGURE(LEDS_MASK);
     LEDS_ON(LEDS_MASK);	
+    LEDS_OFF(BSP_LED_2_MASK);
 }
 
 /**@brief Application main function.
