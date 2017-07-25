@@ -77,10 +77,18 @@
 #define NEXT_CONN_PARAMS_UPDATE_DELAY   APP_TIMER_TICKS(1000, APP_TIMER_PRESCALER) /**< Time between each call to sd_ble_gap_conn_param_update after the first call (30 seconds). */
 #define MAX_CONN_PARAMS_UPDATE_COUNT    3                                           /**< Number of attempts before giving up the connection parameter negotiation. */
 
+#define SEC_PARAM_BOND                   1                                          /**< Perform bonding. */
+#define SEC_PARAM_MITM                   0                                          /**< Man In The Middle protection not required. */
+#define SEC_PARAM_IO_CAPABILITIES        BLE_GAP_IO_CAPS_NONE                       /**< No I/O capabilities. */
+#define SEC_PARAM_OOB                    0                                          /**< Out Of Band data not available. */
+#define SEC_PARAM_MIN_KEY_SIZE           7                                          /**< Minimum encryption key size. */
+#define SEC_PARAM_MAX_KEY_SIZE           16                                         /**< Maximum encryption key size. */
+
 #define DFU_REV_MAJOR                    0x00                                       /** DFU Major revision number to be exposed. */
 #define DFU_REV_MINOR                    0x01    
 #define DFU_REVISION                     ((DFU_REV_MAJOR << 8) | DFU_REV_MINOR)     /** DFU Revision number to be exposed. Combined of major and minor versions. */
-
+#define APP_SERVICE_HANDLE_START         0x000C                                     /**< Handle of first application specific service when when service changed characteristic is present. */
+#define BLE_HANDLE_MAX                   0xFFFF  
                                         /**< The string that will be sent over the UART when the application starts. */
 
 #define DEAD_BEEF                       0xDEADBEEF                                  /**< Value used as error code on stack dump, can be used to identify stack location on stack unwind. */
@@ -88,8 +96,11 @@
 #define UART_TX_BUF_SIZE                256                                         /**< UART TX buffer size. */
 #define UART_RX_BUF_SIZE                256                                         /**< UART RX buffer size. */
 
-       ble_nus_t                        m_nus;   
+       ble_nus_t                        m_nus;
+       
+static dm_application_instance_t        m_app_handle;                              /**< Application identifier allocated by device manager */
 static ble_dfu_t                        m_dfus;          /**< Structure to identify the Nordic UART Service. */
+
 static uint16_t                         m_conn_handle = BLE_CONN_HANDLE_INVALID;    /**< Handle of the current connection. */
 
 //广播UUID
@@ -98,9 +109,14 @@ const   nrf_drv_timer_t                   TIMER_UART = NRF_DRV_TIMER_INSTANCE(1)
 extern  BLE_CFG_FIRMWAREINFO              ble_cfg_firmwareinfo;
 
 
-
+static void on_adv_evt(ble_adv_evt_t ble_adv_evt);
 static void advertising_stop(void);
+static void app_context_load(dm_handle_t const * p_handle);
 static void reset_prepare(void);
+static void device_manager_init(bool erase_bonds);
+static uint32_t device_manager_evt_handler(dm_handle_t const * p_handle,
+                                           dm_event_t const  * p_event,
+                                           ret_code_t        event_result);
 /**@brief Function for assert macro callback.
  *
  * @details This function will be called in case of an assert in the SoftDevice.
@@ -131,9 +147,7 @@ static void gap_params_init(void)
 
     //安全模式结构体设置为mode1，level1
     BLE_GAP_CONN_SEC_MODE_SET_OPEN(&sec_mode);
-
-/////////////////////////////////////////	
-//根据不同的MAC地址生成唯一的设备名字	  
+ 
 	ble_gap_addr_t p_addr;
 	//int dev_len = strlen(DEVICE_NAME);
     int devname_len=0;
@@ -142,13 +156,10 @@ static void gap_params_init(void)
 	//strcpy(dev_name,DEVICE_NAME);
 	memcpy(dev_name,ble_cfg_firmwareinfo.lename_ssid,12);
 	err_code = sd_ble_gap_address_get(&p_addr);
-/////////////////////////////////////////	
+    
     memcpy(&dev_name[12],(uint8_t*)p_addr.addr,6);
     devname_len=sprintf(&dev_name[12],"%x%x%x%x%x%x",p_addr.addr[0],p_addr.addr[1],p_addr.addr[2],p_addr.addr[3],p_addr.addr[4],p_addr.addr[5]);
-    //将设备名和安全模式写入BLE参数中
-//    err_code = sd_ble_gap_device_name_set(&sec_mode,
-//                                          (const uint8_t *) dev_name,
-//                                          strlen(DEVICE_NAME));
+
      
     err_code = sd_ble_gap_device_name_set(&sec_mode,
                                           (const uint8_t *) dev_name,
@@ -212,8 +223,77 @@ static void reset_prepare(void)
     err_code = ble_conn_params_stop();
     APP_ERROR_CHECK(err_code);
 
-   // nrf_delay_ms(500);
+    nrf_delay_ms(500);
 }
+static void device_manager_init(bool erase_bonds)
+{
+    uint32_t               err_code;
+    dm_init_param_t        init_param = {.clear_persistent_data = erase_bonds};
+    dm_application_param_t register_param;
+
+    // Initialize persistent storage module.
+    err_code = pstorage_init();
+    APP_ERROR_CHECK(err_code);
+
+    err_code = dm_init(&init_param);
+    APP_ERROR_CHECK(err_code);
+
+    memset(&register_param.sec_param, 0, sizeof(ble_gap_sec_params_t));
+
+    register_param.sec_param.bond         = SEC_PARAM_BOND;
+    register_param.sec_param.mitm         = SEC_PARAM_MITM;
+    register_param.sec_param.io_caps      = SEC_PARAM_IO_CAPABILITIES;
+    register_param.sec_param.oob          = SEC_PARAM_OOB;
+    register_param.sec_param.min_key_size = SEC_PARAM_MIN_KEY_SIZE;
+    register_param.sec_param.max_key_size = SEC_PARAM_MAX_KEY_SIZE;
+    register_param.evt_handler            = device_manager_evt_handler;
+    register_param.service_type           = DM_PROTOCOL_CNTXT_GATT_SRVR_ID;
+
+    err_code = dm_register(&m_app_handle, &register_param);
+    APP_ERROR_CHECK(err_code);
+}
+
+static uint32_t device_manager_evt_handler(dm_handle_t const * p_handle,
+                                           dm_event_t const  * p_event,
+                                           ret_code_t        event_result)
+{
+    APP_ERROR_CHECK(event_result);
+
+
+    if (p_event->event_id == DM_EVT_LINK_SECURED)
+    {
+        app_context_load(p_handle);
+    }
+
+
+    return NRF_SUCCESS;
+}
+/**@brief Function for initializing the Advertising functionality.
+ */
+static void advertising_init(void)
+{
+    uint32_t      err_code;
+    ble_advdata_t advdata;
+
+    // Build advertising data struct to pass into @ref ble_advertising_init.
+    memset(&advdata, 0, sizeof(advdata));
+
+    advdata.name_type               = BLE_ADVDATA_FULL_NAME;
+    advdata.include_appearance      = true;
+    advdata.flags                   = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE;
+    advdata.uuids_complete.uuid_cnt = sizeof(m_adv_uuids) / sizeof(m_adv_uuids[0]);
+    advdata.uuids_complete.p_uuids  = m_adv_uuids;
+
+    ble_adv_modes_config_t options = {0};
+    options.ble_adv_fast_enabled  = BLE_ADV_FAST_ENABLED;
+    options.ble_adv_fast_interval = APP_ADV_INTERVAL;
+    options.ble_adv_fast_timeout  = APP_ADV_TIMEOUT_IN_SECONDS;
+
+    err_code = ble_advertising_init(&advdata, NULL, &options, on_adv_evt, NULL);
+    APP_ERROR_CHECK(err_code);
+}
+
+
 
 static void advertising_stop(void)
 {
@@ -225,6 +305,50 @@ static void advertising_stop(void)
     err_code = bsp_indication_set(BSP_INDICATE_IDLE);
     APP_ERROR_CHECK(err_code);
 }
+
+static void app_context_load(dm_handle_t const * p_handle)
+{
+    uint32_t err_code;
+    static uint32_t context_data;
+    dm_application_context_t context;
+
+    context.len = sizeof(context_data);
+    context.p_data = (uint8_t *)&context_data;
+
+    err_code = dm_application_context_get(p_handle, &context);
+    if (err_code == NRF_SUCCESS)
+    {
+        // Send Service Changed Indication if ATT table has changed.
+        if ((context_data & (DFU_APP_ATT_TABLE_CHANGED << DFU_APP_ATT_TABLE_POS)) != 0)
+        {
+            err_code = sd_ble_gatts_service_changed(m_conn_handle, APP_SERVICE_HANDLE_START, BLE_HANDLE_MAX);
+            if ((err_code != NRF_SUCCESS) &&
+                (err_code != BLE_ERROR_INVALID_CONN_HANDLE) &&
+                (err_code != NRF_ERROR_INVALID_STATE) &&
+                (err_code != BLE_ERROR_NO_TX_BUFFERS) &&
+                (err_code != NRF_ERROR_BUSY) &&
+                (err_code != BLE_ERROR_GATTS_SYS_ATTR_MISSING))
+            {
+                APP_ERROR_HANDLER(err_code);
+            }
+        }
+
+        err_code = dm_application_context_delete(p_handle);
+        APP_ERROR_CHECK(err_code);
+    }
+    else if (err_code == DM_NO_APP_CONTEXT)
+    {
+        // No context available. Ignore.
+    }
+    else
+    {
+        APP_ERROR_HANDLER(err_code);
+    }
+}
+
+
+
+
 
 
 static void DFU_Service_Init(void)
@@ -239,6 +363,7 @@ static void DFU_Service_Init(void)
     err_code = ble_dfu_init(&m_dfus, &dfus_init);
     APP_ERROR_CHECK(err_code);
     dfu_app_reset_prepare_set(reset_prepare);
+    dfu_app_dm_appl_instance_set(m_app_handle);
 }
 
 /**@brief Function for initializing services that will be used by the application.
@@ -314,26 +439,6 @@ static void conn_params_init(void)
     err_code = ble_conn_params_init(&cp_init);
     APP_ERROR_CHECK(err_code);
 }
-
-
-/**@brief Function for putting the chip into sleep mode.
- * 进入睡眠模式
- * @note This function will not return.
- */
-static void sleep_mode_enter(void)
-{
-    uint32_t err_code = bsp_indication_set(BSP_INDICATE_IDLE);
-    APP_ERROR_CHECK(err_code);
-
-    // Prepare wakeup buttons.按键唤醒
-    err_code = bsp_btn_ble_sleep_mode_prepare();
-    APP_ERROR_CHECK(err_code);
-
-    // Go to system-off mode (this function will not return; wakeup will cause a reset).
-    err_code = sd_power_system_off();
-    APP_ERROR_CHECK(err_code);
-}
-
 
 /**@brief Function for handling advertising events.
  * 广播事件处理
@@ -424,6 +529,7 @@ static void ble_evt_dispatch(ble_evt_t * p_ble_evt)
     on_ble_evt(p_ble_evt);
     ble_advertising_on_ble_evt(p_ble_evt);
     ble_dfu_on_ble_evt(&m_dfus, p_ble_evt);
+    dm_ble_evt_handler(p_ble_evt);
     Ble_tx_complete_handler(p_ble_evt);
 }
 
@@ -562,7 +668,7 @@ void uart_event_handle(app_uart_evt_t * p_event)
         case APP_UART_DATA_READY:    
             
            //Test_Pin_Invert();
-            app_uart_get(&temp);   
+            app_uart_get(&temp); 
             Ble_TxFifo_DataPush(&temp,1);
             if(Ble_TxFifo_Datalen()<512)
             {
@@ -614,35 +720,6 @@ static void uart_init(void)
 /**@snippet [UART Initialization] */
 
 
-/**@brief Function for initializing the Advertising functionality.
- */
-static void advertising_init(void)
-{
-    uint32_t      err_code;
-    ble_advdata_t advdata;
-    ble_advdata_t scanrsp;
-
-    // Build advertising data struct to pass into @ref ble_advertising_init.
-    memset(&advdata, 0, sizeof(advdata));
-    advdata.name_type          = BLE_ADVDATA_FULL_NAME;
-    advdata.include_appearance = false;
-   // advdata.flags              = BLE_GAP_ADV_FLAGS_LE_ONLY_LIMITED_DISC_MODE;
-	advdata.flags              = BLE_GAP_ADV_FLAGS_LE_ONLY_GENERAL_DISC_MODE;	//永远不关闭
-
-    memset(&scanrsp, 0, sizeof(scanrsp));
-    scanrsp.uuids_complete.uuid_cnt = sizeof(m_adv_uuids) / sizeof(m_adv_uuids[0]);
-    scanrsp.uuids_complete.p_uuids  = m_adv_uuids;
-
-    ble_adv_modes_config_t options = {0};
-    options.ble_adv_fast_enabled  = BLE_ADV_FAST_ENABLED;
-    options.ble_adv_fast_interval = APP_ADV_INTERVAL;
-    options.ble_adv_fast_timeout  = APP_ADV_TIMEOUT_IN_SECONDS;
-
-    err_code = ble_advertising_init(&advdata, &scanrsp, &options, on_adv_evt, NULL);
-    APP_ERROR_CHECK(err_code);
-}
-
-
 /**@brief Function for initializing buttons and leds.
  * 初始化IO口
  * @param[out] p_erase_bonds  Will be true if the clear bonding button was pressed to wake the application up.
@@ -659,8 +736,9 @@ static void board_init(void)
 int main(void)
 { 
     uint32_t err_code;	
-    Ble_Fifo_Init();
-     
+    bool erase_bonds;
+    
+    Ble_Fifo_Init();  
     APP_TIMER_INIT(APP_TIMER_PRESCALER, APP_TIMER_OP_QUEUE_SIZE, false);
     uart_init();
     FirmwareInfo_Default();
@@ -669,6 +747,7 @@ int main(void)
     Ble_ConnectStatusPin_Configuration();
     time_init(10);
     ble_stack_init();
+    device_manager_init(erase_bonds);
     gap_params_init();
     DFU_Service_Init();
     CustomSevice_init();
@@ -689,10 +768,5 @@ int main(void)
         {
           LEDS_OFF(BSP_LED_3_MASK);
         }          
-
     }
 }
-
-/** 
- * @}
- */

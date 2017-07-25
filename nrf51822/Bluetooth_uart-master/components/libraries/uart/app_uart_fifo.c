@@ -18,7 +18,7 @@
 static __INLINE uint32_t fifo_length(app_fifo_t * const fifo)
 {
   uint32_t tmp = fifo->read_pos;
-  return fifo->write_pos - tmp;
+  return (fifo->write_pos - tmp)&(fifo->buf_size_mask);
 }
 
 #define FIFO_LENGTH(F) fifo_length(&F)              /**< Macro to calculate length of a FIFO. */
