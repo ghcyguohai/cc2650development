@@ -346,11 +346,6 @@ static void app_context_load(dm_handle_t const * p_handle)
     }
 }
 
-
-
-
-
-
 static void DFU_Service_Init(void)
 {
     ble_dfu_init_t dfus_init;
@@ -363,7 +358,7 @@ static void DFU_Service_Init(void)
     err_code = ble_dfu_init(&m_dfus, &dfus_init);
     APP_ERROR_CHECK(err_code);
     dfu_app_reset_prepare_set(reset_prepare);
-    dfu_app_dm_appl_instance_set(m_app_handle);
+   // dfu_app_dm_appl_instance_set(m_app_handle);
 }
 
 /**@brief Function for initializing services that will be used by the application.
@@ -736,18 +731,20 @@ static void board_init(void)
 int main(void)
 { 
     uint32_t err_code;	
-    bool erase_bonds;
+    bool erase_bonds=false;
     
     Ble_Fifo_Init();  
     APP_TIMER_INIT(APP_TIMER_PRESCALER, APP_TIMER_OP_QUEUE_SIZE, false);
     uart_init();
-    FirmwareInfo_Default();
 	board_init();
+ 
     ATcmd_Pin_Configuration();
     Ble_ConnectStatusPin_Configuration();
     time_init(10);
-    ble_stack_init();
+    FirmwareInfo_Default();
     device_manager_init(erase_bonds);
+    ble_stack_init();
+
     gap_params_init();
     DFU_Service_Init();
     CustomSevice_init();

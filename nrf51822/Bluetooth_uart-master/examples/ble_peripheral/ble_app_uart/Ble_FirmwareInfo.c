@@ -42,10 +42,10 @@ uint32_t FirmwareInfo_Addr(void)
 void FirmwareInfo_Default(void)
 {
     uint32_t result=0;
-    pstorage_init();
+
     
     param.block_size  = sizeof(BLE_CFG_FIRMWAREINFO);                  
-    param.block_count = 1;                   //Select 1 blocks, total of sizeof(BLE_CFG_FIRMWAREINFO) 
+    param.block_count = 2;                   //Select 1 blocks, total of sizeof(BLE_CFG_FIRMWAREINFO) 
     param.cb          = example_cb_handler;   //Set the pstorage callback handler
     result = pstorage_init();
     
@@ -62,9 +62,9 @@ uint8_t FirmwareInfo_upgrade(BLE_CFG_FIRMWAREINFO* src_ble_cfg_firmwareinfo)
 {
     uint32_t     result=0;
     
-    pstorage_block_identifier_get(&firmwareinfo_handle,0, &firmwareinfo_handle);
-    pstorage_clear(&firmwareinfo_handle, sizeof(BLE_CFG_FIRMWAREINFO));
-    pstorage_store(&firmwareinfo_handle, (uint8_t*)src_ble_cfg_firmwareinfo, sizeof(BLE_CFG_FIRMWAREINFO), 0);     //Write to flash
+    result=pstorage_block_identifier_get(&firmwareinfo_handle,0, &firmwareinfo_handle);
+    result=pstorage_clear(&firmwareinfo_handle, sizeof(BLE_CFG_FIRMWAREINFO));
+    result=pstorage_store(&firmwareinfo_handle, (uint8_t*)src_ble_cfg_firmwareinfo, sizeof(BLE_CFG_FIRMWAREINFO), 0);     //Write to flash
 
     return  result;
 }
