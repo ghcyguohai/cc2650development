@@ -223,7 +223,7 @@ static void reset_prepare(void)
     err_code = ble_conn_params_stop();
     APP_ERROR_CHECK(err_code);
 
-    nrf_delay_ms(500);
+   // nrf_delay_ms(500);
 }
 static void device_manager_init(bool erase_bonds)
 {
@@ -292,9 +292,6 @@ static void advertising_init(void)
     err_code = ble_advertising_init(&advdata, NULL, &options, on_adv_evt, NULL);
     APP_ERROR_CHECK(err_code);
 }
-
-
-
 static void advertising_stop(void)
 {
     uint32_t err_code;
@@ -468,7 +465,7 @@ static void on_adv_evt(ble_adv_evt_t ble_adv_evt)
  */
 static void on_ble_evt(ble_evt_t * p_ble_evt)
 {
-    uint32_t                         err_code=NRF_SUCCESS;
+    uint32_t    err_code=NRF_SUCCESS;
     //协议栈事件
     switch (p_ble_evt->header.evt_id)
     {
@@ -713,8 +710,6 @@ static void uart_init(void)
     APP_ERROR_CHECK(err_code);
 }
 /**@snippet [UART Initialization] */
-
-
 /**@brief Function for initializing buttons and leds.
  * 初始化IO口
  * @param[out] p_erase_bonds  Will be true if the clear bonding button was pressed to wake the application up.
@@ -751,12 +746,14 @@ int main(void)
     services_init();
     advertising_init();
     conn_params_init();
+    sd_ble_gap_tx_power_set(4);  // set txpower is 4db
     err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
     APP_ERROR_CHECK(err_code);
    
 
     for (;;)
     {  
+       // uart_printf("mcu is running \r\n");
         if(Check_ATcmd_Pin_Level())
         {
           LEDS_ON(BSP_LED_3_MASK);

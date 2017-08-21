@@ -42,10 +42,9 @@ uint32_t FirmwareInfo_Addr(void)
 void FirmwareInfo_Default(void)
 {
     uint32_t result=0;
-
     
     param.block_size  = sizeof(BLE_CFG_FIRMWAREINFO);                  
-    param.block_count = 2;                   //Select 1 blocks, total of sizeof(BLE_CFG_FIRMWAREINFO) 
+    param.block_count = 1;                   //Select 1 blocks, total of sizeof(BLE_CFG_FIRMWAREINFO) 
     param.cb          = example_cb_handler;   //Set the pstorage callback handler
     result = pstorage_init();
     
@@ -54,7 +53,6 @@ void FirmwareInfo_Default(void)
     {
         
     }
-    
     FirmwareInfo_Read(&ble_cfg_firmwareinfo);
 }
 

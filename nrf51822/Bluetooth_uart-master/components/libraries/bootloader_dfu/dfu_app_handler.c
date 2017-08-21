@@ -152,8 +152,6 @@ static void bootloader_start(uint16_t conn_handle)
     interrupts_disable();
     bootloader_util_app_start(NRF_UICR->BOOTLOADERADDR);
 }
-
-
 void dfu_app_on_dfu_evt(ble_dfu_t * p_dfu, ble_dfu_evt_t * p_evt)
 {
     switch (p_evt->ble_dfu_evt_type)

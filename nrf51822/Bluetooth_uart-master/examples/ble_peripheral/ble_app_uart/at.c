@@ -172,7 +172,7 @@ void 	Ble_ATcmd_LEMAC_Handler(uint8_t* pbuf, uint8_t len)
         mac_addr_len=sprintf((char*)mac_addr,"+LEMAC:%x:%x:%x:%x:%x:%x\r\n",p_addr.addr[0],p_addr.addr[1],p_addr.addr[2],p_addr.addr[3],p_addr.addr[4],p_addr.addr[5]);
         for(i=0;i<mac_addr_len;i++)
         {
-            app_uart_put(mac_addr[i]);
+            while(app_uart_put(mac_addr[i])!=NRF_SUCCESS);
         }
 }
 

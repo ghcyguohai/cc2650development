@@ -56,6 +56,6 @@ static     void  SetBLE_Lowpowermode_Char7_Function(uint8_t data);
 
 
 
-void   CustomService_ble_evt_handle(ble_evt_t * p_ble_evt);
+           void  CustomService_ble_evt_handle(ble_evt_t * p_ble_evt);
 
 #endif
