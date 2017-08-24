@@ -574,7 +574,7 @@ void timer_event_handler(nrf_timer_event_t event_type, void* p_context)
             if(time_counter>100)
             {
                 time_counter=0;
-                 LEDS_INVERT(BSP_LED_0_MASK);
+               // Test_Pin_Invert();
             }
                
              if(Check_ATcmd_Pin_Level()==0)  // 0: cmd_mode
@@ -753,7 +753,7 @@ int main(void)
 
     for (;;)
     {  
-       // uart_printf("mcu is running \r\n");
+        uart_printf("mcu is running \r\n");
         if(Check_ATcmd_Pin_Level())
         {
           LEDS_ON(BSP_LED_3_MASK);

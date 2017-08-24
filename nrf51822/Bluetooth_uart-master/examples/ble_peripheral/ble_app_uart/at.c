@@ -27,8 +27,8 @@
 
 
 
-#define 	ATCMD_PINNO                (28)
-#define 	BLE_CONNECTSTATUS_PINNO    (29u)
+#define 	ATCMD_PINNO                (0u)
+#define 	BLE_CONNECTSTATUS_PINNO    (0u)
 
 
 
@@ -72,7 +72,7 @@ void ATcmd_Pin_Configuration(void)
         {                                                  
             nrf_gpio_cfg_input(ATCMD_PINNO,GPIO_PIN_CNF_PULL_Pullup);
         }while (0);
-        
+  
 }
 
 uint8_t  Check_ATcmd_Pin_Level  (void)
@@ -98,7 +98,7 @@ void    Ble_ConnectStatus_SetLow(void)
 
 void    Test_Pin_Invert(void)
 {
-        // nrf_gpio_pin_toggle(BLE_CONNECTSTATUS_PINNO);
+         nrf_gpio_pin_toggle(BLE_CONNECTSTATUS_PINNO);
 }
 
 

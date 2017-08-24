@@ -88,7 +88,7 @@ void Ble_Timout_Send(void)
     if(ble_con_flag==1)
     {
         Ble_Send();
-        //Test_Pin_Invert();
+        Test_Pin_Invert();
         //uart_printf("timer is running\r\n");
     } 
 }
