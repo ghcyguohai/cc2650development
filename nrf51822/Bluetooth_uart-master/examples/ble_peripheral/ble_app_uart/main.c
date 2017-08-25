@@ -736,8 +736,9 @@ int main(void)
     ATcmd_Pin_Configuration();
     Ble_ConnectStatusPin_Configuration();
     time_init(10);
-    FirmwareInfo_Default();
+
     device_manager_init(erase_bonds);
+    FirmwareInfo_Default();
     ble_stack_init();
 
     gap_params_init();
