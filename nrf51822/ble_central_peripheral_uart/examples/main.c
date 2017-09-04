@@ -230,7 +230,7 @@ static uint32_t adv_report_parse(uint8_t type, data_t * p_advdata, data_t * p_ty
     {
         uint8_t field_length = p_data[index];
         uint8_t field_type   = p_data[index+1];
-
+        //NRF_LOG_PRINTF("peripheral feild type =%x\r\n",field_type);
         if (field_type == type)
         {
             p_typedata->p_data   = &p_data[index+2];
@@ -584,11 +584,20 @@ static void on_ble_central_evt(const ble_evt_t * const p_ble_evt)
             uint32_t err_code;
             data_t   adv_data;
             data_t   type_data;
-
             // For readibility.
             const ble_gap_addr_t  * const peer_addr = &p_gap_evt->params.adv_report.peer_addr;
-
-            // Initialize advertisement report for parsing.
+            
+            uint8_t peripheral_addr[6]={0x7A,0xF6,0xAF,0x92,0x77,0xE5},i=0;
+           if(memcmp(peripheral_addr,peer_addr->addr,6)==0)
+           {    
+                    NRF_LOG_PRINTF("target addr_type =%x\r\n",peer_addr->addr_type);
+                    NRF_LOG_PRINTF("target addr_addr =%x%x%x%x%x%x\r\n",peer_addr->addr[0],peer_addr->addr[1],peer_addr->addr[2],peer_addr->addr[3],peer_addr->addr[4],peer_addr->addr[5]);
+                    for(i=0;i<p_gap_evt->params.adv_report.dlen;i++)
+                    {
+                        NRF_LOG_PRINTF("%c",p_gap_evt->params.adv_report.data[i]);
+                    }  
+                    NRF_LOG_PRINTF("\r\n");
+            }     // Initialize advertisement report for parsing.
             adv_data.p_data     = (uint8_t *)p_gap_evt->params.adv_report.data;
             adv_data.data_len   = p_gap_evt->params.adv_report.dlen;
 
@@ -598,6 +607,7 @@ static void on_ble_central_evt(const ble_evt_t * const p_ble_evt)
 
             if (err_code != NRF_SUCCESS)
             {
+              //  NRF_LOG_PRINTF("ad_type_16bit_service_uuid is unavaliable\r\n");
                 // Look for the services in 'complete' if it was not found in 'more available'.
                 err_code = adv_report_parse(BLE_GAP_AD_TYPE_16BIT_SERVICE_UUID_COMPLETE,
                                             &adv_data,
@@ -606,6 +616,7 @@ static void on_ble_central_evt(const ble_evt_t * const p_ble_evt)
                 if (err_code != NRF_SUCCESS)
                 {
                     // If we can't parse the data, then exit.
+                //     NRF_LOG_PRINTF("ad_type_16bit_service_uuid is complete\r\n");
                     break;
                 }
             }
@@ -662,7 +673,7 @@ static void on_ble_central_evt(const ble_evt_t * const p_ble_evt)
             // Accept parameters requested by peer.
             ret_code_t err_code;
             err_code = sd_ble_gap_conn_param_update(p_gap_evt->conn_handle,
-                                        &p_gap_evt->params.conn_param_update_request.conn_params);
+                       &p_gap_evt->params.conn_param_update_request.conn_params);
             APP_ERROR_CHECK(err_code);
         } break; // BLE_GAP_EVT_CONN_PARAM_UPDATE_REQUEST
 
