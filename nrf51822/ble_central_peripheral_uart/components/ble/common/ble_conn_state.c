@@ -183,7 +183,6 @@ void ble_conn_state_init(void)
     bcs_internal_state_reset();
 }
 
-
 void ble_conn_state_on_ble_evt(ble_evt_t * p_ble_evt)
 {
     switch (p_ble_evt->header.evt_id)
