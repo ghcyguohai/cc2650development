@@ -148,7 +148,6 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
     app_error_handler(0xDEADBEEF, line_num, p_file_name);
 }
 
-
 void uart_error_handle(app_uart_evt_t * p_event)
 {
     if (p_event->evt_type == APP_UART_COMMUNICATION_ERROR)
@@ -160,7 +159,6 @@ void uart_error_handle(app_uart_evt_t * p_event)
         APP_ERROR_HANDLER(p_event->data.error_code);
     }
 }
-
 
 /**@brief Function for handling errors from the Connection Parameters module.
  *
@@ -514,9 +512,9 @@ int main(void)
         NRF_LOG("Bonds erased!\r\n");
     }
     ble_stack_init();
-    nus_c_init();
     peer_manager_init(erase_bonds);
     db_discovery_init();
+    nus_c_init();
     gap_params_init();
     conn_params_init();
     services_init();
@@ -528,7 +526,7 @@ int main(void)
     // Start advertising.
     err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
     APP_ERROR_CHECK(err_code);
-
+    
     for (;;)
     {
         // Wait for BLE events.
