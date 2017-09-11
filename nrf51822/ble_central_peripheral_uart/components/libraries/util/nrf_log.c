@@ -145,9 +145,9 @@ uint32_t log_uart_init()
         TX_PIN_NUMBER,
         RTS_PIN_NUMBER,
         CTS_PIN_NUMBER,
-        APP_UART_FLOW_CONTROL_ENABLED,
+        APP_UART_FLOW_CONTROL_DISABLED,
         false,
-        UART_BAUDRATE_BAUDRATE_Baud38400
+        UART_BAUDRATE_BAUDRATE_Baud115200
     };
 
     APP_UART_FIFO_INIT(&comm_params,

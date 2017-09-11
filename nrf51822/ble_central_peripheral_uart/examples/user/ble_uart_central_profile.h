@@ -7,6 +7,16 @@
 #include "ble_nus_c.h"
 
 
+#define SCAN_INTERVAL               0x00A0                             /**< Determines scan interval in units of 0.625 millisecond. */
+#define SCAN_WINDOW                 0x0050                             /**< Determines scan window in units of 0.625 millisecond. */
+
+#define MIN_CONNECTION_INTERVAL     MSEC_TO_UNITS(7.5, UNIT_1_25_MS)   /**< Determines minimum connection interval in milliseconds. */
+#define MAX_CONNECTION_INTERVAL     MSEC_TO_UNITS(30, UNIT_1_25_MS)    /**< Determines maximum connection interval in milliseconds. */
+#define SLAVE_LATENCY               0                                  /**< Determines slave latency in terms of connection events. */
+#define SUPERVISION_TIMEOUT         MSEC_TO_UNITS(500, UNIT_10_MS)    /**< Determines supervision time-out in units of 10 milliseconds. */
+
+
+
 /**@brief Variable length data encapsulation in terms of length and pointer to data. */
 typedef struct
 {

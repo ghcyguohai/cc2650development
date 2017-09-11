@@ -8,7 +8,7 @@
 #include "ble_srv_common.h"
 #include "nordic_common.h"
 #include "app_error.h"
-
+#include "nrf_log.h"
 
 static ble_nus_c_t * mp_ble_nus_c;
 
@@ -25,6 +25,7 @@ static ble_nus_c_t * mp_ble_nus_c;
  */
 static void db_discover_evt_handler(ble_db_discovery_evt_t * p_evt)
 {
+    
     // Check if the NUS was discovered.
     if (p_evt->evt_type == BLE_DB_DISCOVERY_COMPLETE &&
         p_evt->params.discovered_db.srv_uuid.uuid == BLE_UUID_NUS_SERVICE &&

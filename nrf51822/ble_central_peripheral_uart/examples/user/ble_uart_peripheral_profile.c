@@ -13,11 +13,7 @@
 static ble_nus_t                      m_nus; 
 
 /**@brief UUIDs which the central applications will scan for, and which will be advertised by the peripherals. */
-static ble_uuid_t m_adv_uuids[] = {{BLE_UUID_HEART_RATE_SERVICE,         BLE_UUID_TYPE_BLE},
-                                   {BLE_UUID_RUNNING_SPEED_AND_CADENCE,  BLE_UUID_TYPE_BLE}};
-
-
-
+static ble_uuid_t m_adv_uuids[] = {{BLE_UUID_NUS_SERVICE,BLE_UUID_TYPE_BLE}};
 
 /**@brief Function for initializing services that will be used by the application.
  *

@@ -32,10 +32,11 @@
 #include <stdint.h>
 #include <stdbool.h>
 
-#define NUS_BASE_UUID                  {{0x9E, 0xCA, 0xDC, 0x24, 0x0E, 0xE5, 0xA9, 0xE0, 0x93, 0xF3, 0xA3, 0xB5, 0x00, 0x00, 0x40, 0x6E}} /**< Used vendor specific UUID. */
-#define BLE_UUID_NUS_SERVICE           0x0001                      /**< The UUID of the Nordic UART Service. */
-#define BLE_UUID_NUS_TX_CHARACTERISTIC 0x0002                      /**< The UUID of the TX Characteristic. */
-#define BLE_UUID_NUS_RX_CHARACTERISTIC 0x0003                      /**< The UUID of the RX Characteristic. */
+//#define NUS_BASE_UUID                  {{0x9E, 0xCA, 0xDC, 0x24, 0x0E, 0xE5, 0xA9, 0xE0, 0x93, 0xF3, 0xA3, 0xB5, 0x00, 0x00, 0x40, 0x6E}} /**< Used vendor specific UUID. */
+#define NUS_BASE_UUID                  {{0xfb, 0x34,  0x9b,0x5f, 0x80, 0x00, 0x00, 0x80, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00}}
+#define BLE_UUID_NUS_SERVICE           0xFFE1                      /**< The UUID of the Nordic UART Service. */
+#define BLE_UUID_NUS_TX_CHARACTERISTIC 0xFFE3                      /**< The UUID of the TX Characteristic. */
+#define BLE_UUID_NUS_RX_CHARACTERISTIC 0xFFE2                      /**< The UUID of the RX Characteristic. */
 
 #define BLE_NUS_MAX_DATA_LEN           (GATT_MTU_SIZE_DEFAULT - 3) /**< Maximum length of data (in bytes) that can be transmitted to the peer by the Nordic UART service module. */
 

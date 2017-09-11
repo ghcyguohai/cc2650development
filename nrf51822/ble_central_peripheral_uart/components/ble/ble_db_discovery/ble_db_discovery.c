@@ -16,7 +16,7 @@
 #include "ble.h"
 #include "app_trace.h"
 #include "nordic_common.h"
-
+#include "nrf_log.h"
 #define SRV_DISC_START_HANDLE  0x0001                    /**< The start handle value used during service discovery. */
 #define DB_DISCOVERY_MAX_USERS BLE_DB_DISCOVERY_MAX_SRV  /**< The maximum number of users/registrations allowed by this module. */
 #define DB_LOG                 app_trace_log             /**< A debug logger macro that can be used in this file to do logging information over UART. */
@@ -885,14 +885,18 @@ void ble_db_discovery_on_ble_evt(ble_db_discovery_t * const p_db_discovery,
             break;
 
         case BLE_GATTC_EVT_PRIM_SRVC_DISC_RSP:
+         
+            NRF_LOG_PRINTF("BLE_GATTC_EVT_PRIM_SRVC_DISC_RSP\r\n");
             on_primary_srv_discovery_rsp(p_db_discovery, &(p_ble_evt->evt.gattc_evt));
             break;
 
         case BLE_GATTC_EVT_CHAR_DISC_RSP:
+            NRF_LOG_PRINTF("BLE_GATTC_EVT_CHAR_DISC_RSP\r\n");
             on_characteristic_discovery_rsp(p_db_discovery, &(p_ble_evt->evt.gattc_evt));
             break;
 
         case BLE_GATTC_EVT_DESC_DISC_RSP:
+             NRF_LOG_PRINTF("BLE_GATTC_EVT_DESC_DISC_RSP\r\n");
             on_descriptor_discovery_rsp(p_db_discovery, &(p_ble_evt->evt.gattc_evt));
             break;
 

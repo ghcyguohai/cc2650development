@@ -61,20 +61,17 @@
 #include "ble_conn_params.h"
 #include "ble_db_discovery.h"
 #include "ble_hrs.h"
-#include "ble_rscs.h"
-#include "ble_hrs_c.h"
-#include "ble_rscs_c.h"
 #include "ble_conn_state.h"
 #include "nrf_log.h"
 #include "fstorage.h"
 #include "fds.h"
+#include "nrf_log.h"
 #include "ble_uart_central_profile.h"
 #include "ble_uart_peripheral_profile.h"
 
 #define APPL_LOG                    app_trace_log                      /**< Macro used to log debug information over UART. */
 #define UART_TX_BUF_SIZE            256                                /**< Size of the UART TX buffer, in bytes. Must be a power of two. */
 #define UART_RX_BUF_SIZE            256                                  /**< Size of the UART RX buffer, in bytes. Must be a power of two. */
-
 /* Central related. */
 
 #define CENTRAL_SCANNING_LED        BSP_LED_0_MASK
@@ -91,13 +88,6 @@
 #define SEC_PARAM_MIN_KEY_SIZE      7                                  /**< Minimum encryption key size in octets. */
 #define SEC_PARAM_MAX_KEY_SIZE      16                                 /**< Maximum encryption key size in octets. */
 
-
-
-#define MIN_CONNECTION_INTERVAL     MSEC_TO_UNITS(7.5, UNIT_1_25_MS)   /**< Determines minimum connection interval in milliseconds. */
-#define MAX_CONNECTION_INTERVAL     MSEC_TO_UNITS(30, UNIT_1_25_MS)    /**< Determines maximum connection interval in milliseconds. */
-#define SLAVE_LATENCY               0                                  /**< Determines slave latency in terms of connection events. */
-#define SUPERVISION_TIMEOUT         MSEC_TO_UNITS(4000, UNIT_10_MS)    /**< Determines supervision time-out in units of 10 milliseconds. */
-
 #define MAX_CONNECTED_CENTRALS      2                                  /**< Maximum number of central applications which can be connected at any time. */
 
 #define UUID16_SIZE                 2                                  /**< Size of a UUID, in bytes. */
@@ -111,18 +101,6 @@
         (*(DST))  |= (SRC)[0];   \
     } while (0)
 
-
-/**@brief Connection parameters requested for connection. */
-static const ble_gap_conn_params_t m_connection_param =
-{
-    (uint16_t)MIN_CONNECTION_INTERVAL,
-    (uint16_t)MAX_CONNECTION_INTERVAL,
-    0,
-    (uint16_t)SUPERVISION_TIMEOUT
-};
-
-static ble_db_discovery_t                m_ble_db_discovery;                            /**< HR service DB structure used by the database discovery module. */
-
 #define DEVICE_NAME                      "Relay"                                    /**< Name of device used for advertising. */
 #define MANUFACTURER_NAME                "NordicSemiconductor"                      /**< Manufacturer. Will be passed to Device Information Service. */
 
@@ -131,7 +109,8 @@ static ble_db_discovery_t                m_ble_db_discovery;                    
 #define NEXT_CONN_PARAMS_UPDATE_DELAY    APP_TIMER_TICKS(30000, APP_TIMER_PRESCALER)/**< Time between each call to sd_ble_gap_conn_param_update after the first call (30 seconds). */
 #define MAX_CONN_PARAMS_UPDATE_COUNT     3                                          /**< Number of attempts before giving up the connection parameter negotiation. */
 
-
+extern ble_db_discovery_t                m_ble_db_discovery;   
+extern ble_nus_c_t                       m_ble_nus_c;
 /**@brief Function to handle asserts in the SoftDevice.
  *
  * @details This function will be called in case of an assert in the SoftDevice.
@@ -159,6 +138,31 @@ void uart_error_handle(app_uart_evt_t * p_event)
         APP_ERROR_HANDLER(p_event->data.error_code);
     }
 }
+
+uint32_t log_uart_init()
+{
+    uint32_t err_code;
+    const app_uart_comm_params_t comm_params =
+    {
+        RX_PIN_NUMBER,
+        TX_PIN_NUMBER,
+        RTS_PIN_NUMBER,
+        CTS_PIN_NUMBER,
+        APP_UART_FLOW_CONTROL_DISABLED,
+        false,
+        UART_BAUDRATE_BAUDRATE_Baud115200
+    };
+
+    APP_UART_FIFO_INIT(&comm_params,
+                         UART_RX_BUF_SIZE,
+                         UART_TX_BUF_SIZE,
+                         uart_error_handle,
+                         APP_IRQ_PRIORITY_LOW,
+                         err_code);
+
+    return err_code;
+}
+
 
 /**@brief Function for handling errors from the Connection Parameters module.
  *
@@ -290,14 +294,15 @@ static void ble_evt_dispatch(ble_evt_t * p_ble_evt)
     ble_conn_state_on_ble_evt(p_ble_evt);
 
     pm_ble_evt_handler(p_ble_evt);
-
+    NRF_LOG_PRINTF("p_ble_evt=%d\r\n",p_ble_evt->header.evt_id);
     // The connection handle should really be retrievable for any event type.
     conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
-    role        = ble_conn_state_role(conn_handle);
-
+    role        = ble_conn_state_role(conn_handle);// check the role type to be connected 
+   
     // Based on the role this device plays in the connection, dispatch to the right applications.
     if (role == BLE_GAP_ROLE_PERIPH)
     {
+        NRF_LOG_PRINTF("role is periph\r\n");
         ble_advertising_on_ble_evt(p_ble_evt);
         ble_conn_params_on_ble_evt(p_ble_evt);
 
@@ -305,11 +310,16 @@ static void ble_evt_dispatch(ble_evt_t * p_ble_evt)
     }
     else if ((role == BLE_GAP_ROLE_CENTRAL) || (p_ble_evt->header.evt_id == BLE_GAP_EVT_ADV_REPORT))
     {
+        
         /** on_ble_central_evt will update the connection handles, so we want to execute it
          * after dispatching to the central applications upon disconnection. */
         if (p_ble_evt->header.evt_id != BLE_GAP_EVT_DISCONNECTED)
         {
+            NRF_LOG_PRINTF("p_ble_evt->header.evt_id=%x\r\n",p_ble_evt->header.evt_id);
+            ble_db_discovery_on_ble_evt(&m_ble_db_discovery, p_ble_evt);
             on_ble_central_evt(p_ble_evt);
+            //ble_nus_c_on_ble_evt(&m_ble_nus_c,p_ble_evt);
+            
         }
 
         // If the peer disconnected, we update the connection handles last.
@@ -498,9 +508,11 @@ static void power_manage(void)
 int main(void)
 {
     ret_code_t err_code;
+    uint8_t test[10]="0123456789";
     bool       erase_bonds;
 
     err_code = NRF_LOG_INIT();
+    log_uart_init();
     APP_ERROR_CHECK(err_code);
 
     NRF_LOG_PRINTF("Relay Example\r\n");
@@ -526,10 +538,13 @@ int main(void)
     // Start advertising.
     err_code = ble_advertising_start(BLE_ADV_MODE_FAST);
     APP_ERROR_CHECK(err_code);
-    
+    extern ble_nus_c_t                  m_ble_nus_c;
     for (;;)
     {
-        // Wait for BLE events.
+//        if(ble_nus_c_string_send( &m_ble_nus_c,test,10)==NRF_SUCCESS)
+//        {
+//        }
+//        // Wait for BLE events.
         power_manage();
     }
 }
