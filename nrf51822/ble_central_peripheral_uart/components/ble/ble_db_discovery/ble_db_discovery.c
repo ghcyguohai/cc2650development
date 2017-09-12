@@ -886,17 +886,17 @@ void ble_db_discovery_on_ble_evt(ble_db_discovery_t * const p_db_discovery,
 
         case BLE_GATTC_EVT_PRIM_SRVC_DISC_RSP:
          
-            NRF_LOG_PRINTF("BLE_GATTC_EVT_PRIM_SRVC_DISC_RSP\r\n");
+            app_trace_log("BLE_GATTC_EVT_PRIM_SRVC_DISC_RSP\r\n");
             on_primary_srv_discovery_rsp(p_db_discovery, &(p_ble_evt->evt.gattc_evt));
             break;
 
         case BLE_GATTC_EVT_CHAR_DISC_RSP:
-            NRF_LOG_PRINTF("BLE_GATTC_EVT_CHAR_DISC_RSP\r\n");
+            app_trace_log("BLE_GATTC_EVT_CHAR_DISC_RSP\r\n");
             on_characteristic_discovery_rsp(p_db_discovery, &(p_ble_evt->evt.gattc_evt));
             break;
 
         case BLE_GATTC_EVT_DESC_DISC_RSP:
-             NRF_LOG_PRINTF("BLE_GATTC_EVT_DESC_DISC_RSP\r\n");
+             app_trace_log("BLE_GATTC_EVT_DESC_DISC_RSP\r\n");
             on_descriptor_discovery_rsp(p_db_discovery, &(p_ble_evt->evt.gattc_evt));
             break;
 

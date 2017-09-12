@@ -27,6 +27,8 @@
 #include "ble_advdata.h"
 
 #include "ble_nus_c.h"
+#include "ble_uart_central_profile.h"
+
 
 #define UART_TX_BUF_SIZE        256                             /**< UART TX buffer size. */
 #define UART_RX_BUF_SIZE        256                             /**< UART RX buffer size. */
@@ -38,47 +40,18 @@
                                                                 
 #define APPL_LOG                app_trace_log                   /**< Debug logger macro that will be used in this file to do logging of debug information over UART. */
                                                                 
-#define SCAN_INTERVAL           0x00A0                          /**< Determines scan interval in units of 0.625 millisecond. */
-#define SCAN_WINDOW             0x0050                          /**< Determines scan window in units of 0.625 millisecond. */
-#define SCAN_ACTIVE             1                               /**< If 1, performe active scanning (scan requests). */
-#define SCAN_SELECTIVE          0                               /**< If 1, ignore unknown devices (non whitelisted). */
-#define SCAN_TIMEOUT            0x0000                          /**< */
+
                                                                 
-#define MIN_CONNECTION_INTERVAL MSEC_TO_UNITS(20, UNIT_1_25_MS) /**< Determines minimum connection interval in millisecond. */
-#define MAX_CONNECTION_INTERVAL MSEC_TO_UNITS(75, UNIT_1_25_MS) /**< Determines maximum connection interval in millisecond. */
 #define SLAVE_LATENCY           0                               /**< Determines slave latency in counts of connection events. */
-#define SUPERVISION_TIMEOUT     MSEC_TO_UNITS(4000, UNIT_10_MS) /**< Determines supervision time-out in units of 10 millisecond. */
-                                                                
+                                                       
 #define UUID16_SIZE             2                               /**< Size of 16 bit UUID */
 #define UUID32_SIZE	            4                               /**< Size of 32 bit UUID */
 #define UUID128_SIZE            16                              /**< Size of 128 bit UUID */
 
-static ble_nus_c_t              m_ble_nus_c;
-static ble_db_discovery_t       m_ble_db_discovery;
+extern ble_db_discovery_t           m_ble_db_discovery;                           
+extern ble_nus_c_t                  m_ble_nus_c;
 
-/**
- * @brief Connection parameters requested for connection.
- */
-static const ble_gap_conn_params_t m_connection_param =
-  {
-    (uint16_t)MIN_CONNECTION_INTERVAL,   // Minimum connection
-    (uint16_t)MAX_CONNECTION_INTERVAL,   // Maximum connection
-    0,                                   // Slave latency
-    (uint16_t)SUPERVISION_TIMEOUT        // Supervision time-out
-  };
 
-/**
- * @brief Parameters used when scanning.
- */
-static const ble_gap_scan_params_t m_scan_params = 
-  {
-    .active      = SCAN_ACTIVE,
-    .selective   = SCAN_SELECTIVE,
-    .p_whitelist = NULL,
-    .interval    = SCAN_INTERVAL,
-    .window      = SCAN_WINDOW,
-    .timeout     = SCAN_TIMEOUT
-  };
 
 /**
  * @brief NUS uuid
@@ -107,16 +80,7 @@ void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
 
 /**@brief Function to start scanning.
  */
-static void scan_start(void)
-{
-    uint32_t err_code;
-    
-    err_code = sd_ble_gap_scan_start(&m_scan_params);
-    APP_ERROR_CHECK(err_code);
-    
-    err_code = bsp_indication_set(BSP_INDICATE_SCANNING);
-    APP_ERROR_CHECK(err_code);
-}
+
 
 /**@brief   Function for handling app_uart events.
  *
@@ -160,44 +124,8 @@ void uart_event_handle(app_uart_evt_t * p_event)
     }
 }
 
+ 
 
-/**@brief Callback handling NUS Client events.
- *
- * @details This function is called to notify the application of NUS client events.
- *
- * @param[in]   p_ble_nus_c   NUS Client Handle. This identifies the NUS client
- * @param[in]   p_ble_nus_evt Pointer to the NUS Client event.
- */
-  
-/**@snippet [Handling events from the ble_nus_c module] */ 
-static void ble_nus_c_evt_handler(ble_nus_c_t * p_ble_nus_c, const ble_nus_c_evt_t * p_ble_nus_evt)
-{
-    uint32_t err_code;
-    switch (p_ble_nus_evt->evt_type)
-    {
-        case BLE_NUS_C_EVT_FOUND_NUS_TX_CHARACTERISTIC:
-            APPL_LOG("The device has the device TX characteristic\r\n");
-            break;
-        
-        case BLE_NUS_C_EVT_FOUND_NUS_RX_CHARACTERISTIC:
-            err_code = ble_nus_c_rx_notif_enable(p_ble_nus_c);
-            APP_ERROR_CHECK(err_code);
-            APPL_LOG("The device has the device RX characteristic\r\n");
-            break;
-        
-        case BLE_NUS_C_EVT_NUS_RX_EVT:
-            for (uint32_t i = 0; i < p_ble_nus_evt->data_len; i++)
-            {
-                while(app_uart_put( p_ble_nus_evt->p_data[i]) != NRF_SUCCESS);
-            }
-            break;
-        
-        case BLE_NUS_C_EVT_DISCONNECTED:
-            APPL_LOG("NUS device disconnected\r\n");
-            scan_start();
-            break;
-    }
-}
 /**@snippet [Handling events from the ble_nus_c module] */ 
 
 /**@brief Function for putting the chip into sleep mode.
@@ -218,175 +146,7 @@ static void sleep_mode_enter(void)
     APP_ERROR_CHECK(err_code);
 }
 
-/**@brief Reads an advertising report and checks if a uuid is present in the service list.
- *
- * @details The function is able to search for 16-bit, 32-bit and 128-bit service uuids. 
- *          To see the format of a advertisement packet, see 
- *          https://www.bluetooth.org/Technical/AssignedNumbers/generic_access_profile.htm
- *
- * @param[in]   p_target_uuid The uuid to search fir
- * @param[in]   p_adv_report  Pointer to the advertisement report.
- *
- * @retval      true if the UUID is present in the advertisement report. Otherwise false  
- */
-static bool is_uuid_present(const ble_uuid_t *p_target_uuid, 
-                            const ble_gap_evt_adv_report_t *p_adv_report)
-{
-    uint32_t err_code;
-    uint32_t index = 0;
-    uint8_t *p_data = (uint8_t *)p_adv_report->data;
-    ble_uuid_t extracted_uuid;
-    
-    while (index < p_adv_report->dlen)
-    {
-        uint8_t field_length = p_data[index];
-        uint8_t field_type   = p_data[index+1];
-                
-        if ( (field_type == BLE_GAP_AD_TYPE_16BIT_SERVICE_UUID_MORE_AVAILABLE)
-           || (field_type == BLE_GAP_AD_TYPE_16BIT_SERVICE_UUID_COMPLETE)
-           )
-        {
-            for (uint32_t u_index = 0; u_index < (field_length/UUID16_SIZE); u_index++)
-            {
-                err_code = sd_ble_uuid_decode(  UUID16_SIZE, 
-                                                &p_data[u_index * UUID16_SIZE + index + 2], 
-                                                &extracted_uuid);
-                if (err_code == NRF_SUCCESS)
-                {
-                    if ((extracted_uuid.uuid == p_target_uuid->uuid)
-                        && (extracted_uuid.type == p_target_uuid->type))
-                    {
-                        return true;
-                    }
-                }
-            }
-        }
-        
-        else if ( (field_type == BLE_GAP_AD_TYPE_32BIT_SERVICE_UUID_MORE_AVAILABLE)
-                || (field_type == BLE_GAP_AD_TYPE_32BIT_SERVICE_UUID_COMPLETE)
-                )
-        {
-            for (uint32_t u_index = 0; u_index < (field_length/UUID32_SIZE); u_index++)
-            {
-                err_code = sd_ble_uuid_decode(UUID16_SIZE, 
-                &p_data[u_index * UUID32_SIZE + index + 2], 
-                &extracted_uuid);
-                if (err_code == NRF_SUCCESS)
-                {
-                    if ((extracted_uuid.uuid == p_target_uuid->uuid)
-                        && (extracted_uuid.type == p_target_uuid->type))
-                    {
-                        return true;
-                    }
-                }
-            }
-        }
-        
-        else if ( (field_type == BLE_GAP_AD_TYPE_128BIT_SERVICE_UUID_MORE_AVAILABLE)
-                || (field_type == BLE_GAP_AD_TYPE_128BIT_SERVICE_UUID_COMPLETE)
-                )
-        {
-            err_code = sd_ble_uuid_decode(UUID128_SIZE, 
-                                          &p_data[index + 2], 
-                                          &extracted_uuid);
-            if (err_code == NRF_SUCCESS)
-            {
-                if ((extracted_uuid.uuid == p_target_uuid->uuid)
-                    && (extracted_uuid.type == p_target_uuid->type))
-                {
-                    return true;
-                }
-            }
-        }
-        index += field_length + 1;
-    }
-    return false;
-}
 
-/**@brief Function for handling the Application's BLE Stack events.
- *
- * @param[in]   p_ble_evt   Bluetooth stack event.
- */
-static void on_ble_evt(ble_evt_t * p_ble_evt)
-{
-    uint32_t              err_code;
-    const ble_gap_evt_t * p_gap_evt = &p_ble_evt->evt.gap_evt;	
-    
-    switch (p_ble_evt->header.evt_id)
-    {
-        case BLE_GAP_EVT_ADV_REPORT:
-        {
-            const ble_gap_evt_adv_report_t *p_adv_report = &p_gap_evt->params.adv_report;
-            static const uint8_t peripheral_addr[6]={0x7A,0xF6,0xAF,0x92,0x77,0xE5};            
-           
-          //  if (is_uuid_present(&m_nus_uuid, p_adv_report))
-            if(memcmp(peripheral_addr,p_adv_report->peer_addr.addr,6)==0)
-            {
-              
-                err_code = sd_ble_gap_connect(&p_adv_report->peer_addr,
-                                              &m_scan_params,
-                                              &m_connection_param);
-                
-                if (err_code == NRF_SUCCESS)
-                {
-                    // scan is automatically stopped by the connect
-                                      
-                    err_code = bsp_indication_set(BSP_INDICATE_IDLE);
-                    APP_ERROR_CHECK(err_code);
-                    APPL_LOG("Connecting to target %02x%02x%02x%02x%02x%02x\r\n",
-                             p_adv_report->peer_addr.addr[0],
-                             p_adv_report->peer_addr.addr[1],
-                             p_adv_report->peer_addr.addr[2],
-                             p_adv_report->peer_addr.addr[3],
-                             p_adv_report->peer_addr.addr[4],
-                             p_adv_report->peer_addr.addr[5]
-                             );
-                }
-            }
-            break;
-        }
-        
-        case BLE_GAP_EVT_CONNECTED:
-            APPL_LOG("Connected to target\r\n");
-          //  err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
-            APP_ERROR_CHECK(err_code);
-            
-            m_ble_nus_c.conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
-            APPL_LOG("target handle=%x\r\n",m_ble_nus_c.conn_handle);
-            // start discovery of services. The NUS Client waits for a discovery result
-            err_code = ble_db_discovery_start(&m_ble_db_discovery, p_ble_evt->evt.gap_evt.conn_handle);
-            APP_ERROR_CHECK(err_code);
-            break;
-    
-        case BLE_GAP_EVT_TIMEOUT:
-            if (p_gap_evt->params.timeout.src == BLE_GAP_TIMEOUT_SRC_SCAN)
-            {
-                APPL_LOG("[APPL]: Scan timed out.\r\n");
-                scan_start();
-            }
-            else if (p_gap_evt->params.timeout.src == BLE_GAP_TIMEOUT_SRC_CONN)
-            {
-                APPL_LOG("[APPL]: Connection Request timed out.\r\n");
-            }
-            break;
-            
-        case BLE_GAP_EVT_SEC_PARAMS_REQUEST:
-            // Pairing not supported
-            err_code = sd_ble_gap_sec_params_reply(p_ble_evt->evt.gap_evt.conn_handle, BLE_GAP_SEC_STATUS_PAIRING_NOT_SUPP, NULL, NULL);
-            APP_ERROR_CHECK(err_code);
-            break;
-    
-        case BLE_GAP_EVT_CONN_PARAM_UPDATE_REQUEST:
-            // Accepting parameters requested by peer.
-            err_code = sd_ble_gap_conn_param_update(p_gap_evt->conn_handle,
-                                                    &p_gap_evt->params.conn_param_update_request.conn_params);
-            APP_ERROR_CHECK(err_code);
-            break;
-    
-        default:
-            break;
-    }
-}
 
 /**@brief Function for dispatching a BLE stack event to all modules with a BLE stack event handler.
  *
@@ -486,18 +246,7 @@ static void uart_init(void)
     APP_ERROR_CHECK(err_code);
 }
 
-/**@brief Function for initializing the NUS Client.
- */
-static void nus_c_init(void)
-{
-    uint32_t         err_code;
-    ble_nus_c_init_t nus_c_init_t;
-    
-    nus_c_init_t.evt_handler = ble_nus_c_evt_handler;
-    
-    err_code = ble_nus_c_init(&m_ble_nus_c, &nus_c_init_t);
-    APP_ERROR_CHECK(err_code);
-}
+
 
 /**@brief Function for initializing buttons and leds.
  */
@@ -548,6 +297,6 @@ int main(void)
 
     for (;;)
     {
-        power_manage();
+       // power_manage();
     }
 }
