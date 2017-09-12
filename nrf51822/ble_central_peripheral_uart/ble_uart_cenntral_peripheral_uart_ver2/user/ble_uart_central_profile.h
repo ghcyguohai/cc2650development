@@ -31,7 +31,7 @@ void nus_c_init(void);
 
 void scan_start(void);
 
-void on_ble_evt(ble_evt_t * p_ble_evt);
+void central_on_ble_evt(ble_evt_t * p_ble_evt);
 
 void ble_nus_c_evt_handler(ble_nus_c_t * p_ble_nus_c, const ble_nus_c_evt_t * p_ble_nus_evt);
 

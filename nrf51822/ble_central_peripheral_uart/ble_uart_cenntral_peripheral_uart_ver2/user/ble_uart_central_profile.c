@@ -82,7 +82,7 @@ void scan_start(void)
 }
 
 
-void on_ble_evt(ble_evt_t * p_ble_evt)
+void central_on_ble_evt(ble_evt_t * p_ble_evt)
 {
     uint32_t              err_code;
     const ble_gap_evt_t * p_gap_evt = &p_ble_evt->evt.gap_evt;	
@@ -105,16 +105,14 @@ void on_ble_evt(ble_evt_t * p_ble_evt)
                 if (err_code == NRF_SUCCESS)
                 {
                     // scan is automatically stopped by the connect
-                                      
-             
                     app_trace_log("Connecting to target %02x%02x%02x%02x%02x%02x\r\n",
-                             p_adv_report->peer_addr.addr[0],
-                             p_adv_report->peer_addr.addr[1],
-                             p_adv_report->peer_addr.addr[2],
-                             p_adv_report->peer_addr.addr[3],
-                             p_adv_report->peer_addr.addr[4],
-                             p_adv_report->peer_addr.addr[5]
-                             );
+                                     p_adv_report->peer_addr.addr[0],
+                                     p_adv_report->peer_addr.addr[1],
+                                     p_adv_report->peer_addr.addr[2],
+                                     p_adv_report->peer_addr.addr[3],
+                                     p_adv_report->peer_addr.addr[4],
+                                     p_adv_report->peer_addr.addr[5]
+                                  );
                 }
             }
             break;
