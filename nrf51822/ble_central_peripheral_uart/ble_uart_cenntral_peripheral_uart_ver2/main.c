@@ -48,36 +48,6 @@ extern ble_db_discovery_t           m_ble_db_discovery;
 extern ble_nus_c_t                  m_ble_nus_c;
 
 
-
-/**
- * @brief NUS uuid
- */
-static const ble_uuid_t m_nus_uuid = 
-  {
-    .uuid = BLE_UUID_NUS_SERVICE,
-    .type = NUS_SERVICE_UUID_TYPE	
-  };
-
-/**@brief Function for asserts in the SoftDevice.
- *
- * @details This function will be called in case of an assert in the SoftDevice.
- *
- * @warning This handler is an example only and does not fit a final product. You need to analyze
- *          how your product is supposed to react in case of Assert.
- * @warning On assert from the SoftDevice, the system can only recover on reset.
- *
- * @param[in] line_num     Line number of the failing ASSERT call.
- * @param[in] p_file_name  File name of the failing ASSERT call.
- */
-void assert_nrf_callback(uint16_t line_num, const uint8_t * p_file_name)
-{
-    app_error_handler(0xDEADBEEF, line_num, p_file_name);
-}
-
-/**@brief Function to start scanning.
- */
-
-
 /**@brief   Function for handling app_uart events.
  *
  * @details This function will receive a single character from the app_uart module and append it to 
@@ -121,29 +91,6 @@ void uart_event_handle(app_uart_evt_t * p_event)
 }
 
  
-
-/**@snippet [Handling events from the ble_nus_c module] */ 
-
-/**@brief Function for putting the chip into sleep mode.
- *
- * @note This function will not return.
- */
-static void sleep_mode_enter(void)
-{
-    uint32_t err_code = bsp_indication_set(BSP_INDICATE_IDLE);
-    APP_ERROR_CHECK(err_code);
-
-    // Prepare wakeup buttons.
-    err_code = bsp_btn_ble_sleep_mode_prepare();
-    APP_ERROR_CHECK(err_code);
-
-    // Go to system-off mode (this function will not return; wakeup will cause a reset).
-    err_code = sd_power_system_off();
-    APP_ERROR_CHECK(err_code);
-}
-
-
-
 /**@brief Function for dispatching a BLE stack event to all modules with a BLE stack event handler.
  *
  * @details This function is called from the scheduler in the main loop after a BLE stack event has
