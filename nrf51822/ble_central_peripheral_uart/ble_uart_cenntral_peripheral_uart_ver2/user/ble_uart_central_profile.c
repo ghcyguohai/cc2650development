@@ -5,6 +5,7 @@
 #include "app_error.h"
 #include "string.h"
 #include "ble_db_discovery.h"
+#include "softdevice_handler.h"
 #include "nrf_log.h"
 #include "app_uart.h"
 #include "pca10028.h"
@@ -42,10 +43,53 @@ static const ble_gap_conn_params_t m_connection_param =
     (uint16_t)SUPERVISION_TIMEOUT        // Supervision time-out
   };
 
+void ble_central_mode(void)
+{
+    uint32_t err_code;
+    ble_stack_init();
+    db_discovery_init();
+    err_code = ble_db_discovery_init();
+    APP_ERROR_CHECK(err_code); 
+    nus_c_init();
+    scan_start();
+}
+  
+  
+/**@brief Function for initializing the BLE stack.
+ *
+ * @details Initializes the SoftDevice and the BLE event interrupt.
+ */
+static void ble_stack_init(void)
+{
+    uint32_t err_code;
+
+    // Initialize the SoftDevice handler module.
+    SOFTDEVICE_HANDLER_INIT(NRF_CLOCK_LFCLKSRC_XTAL_20_PPM, NULL);
+
+    // Enable BLE stack.
+    ble_enable_params_t ble_enable_params;
+    memset(&ble_enable_params, 0, sizeof(ble_enable_params));
+#ifdef S130
+    ble_enable_params.gatts_enable_params.attr_tab_size   = BLE_GATTS_ATTR_TAB_SIZE_DEFAULT;
+#endif
+    ble_enable_params.gatts_enable_params.service_changed = false;
+#ifdef S120
+    ble_enable_params.gap_enable_params.role              = BLE_GAP_ROLE_CENTRAL;
+#endif
+
+    err_code = sd_ble_enable(&ble_enable_params);
+    APP_ERROR_CHECK(err_code);
+
+    // Register with the SoftDevice handler module for BLE events.
+    err_code = softdevice_ble_evt_handler_set(ble_evt_dispatch);
+    APP_ERROR_CHECK(err_code);
+}
+
+ 
 /**
  * @brief Database discovery initialization.
  */
-void db_discovery_init(void)
+static void db_discovery_init(void)
 {
     ret_code_t err_code = ble_db_discovery_init();
     APP_ERROR_CHECK(err_code);
@@ -53,7 +97,7 @@ void db_discovery_init(void)
 
 /**@brief Function for initializing the NUS Client.
  */
-void nus_c_init(void)   
+static void nus_c_init(void)   
 {
     uint32_t         err_code;
     ble_nus_c_init_t nus_c_init_t;
@@ -67,7 +111,7 @@ void nus_c_init(void)
 
 /**@brief Function to start scanning.
  */
-void scan_start(void)
+static void scan_start(void)
 {
     ret_code_t err_code;
 
@@ -82,7 +126,7 @@ void scan_start(void)
 }
 
 
-void central_on_ble_evt(ble_evt_t * p_ble_evt)
+static void central_on_ble_evt(ble_evt_t * p_ble_evt)
 {
     uint32_t              err_code;
     const ble_gap_evt_t * p_gap_evt = &p_ble_evt->evt.gap_evt;	
@@ -160,7 +204,7 @@ void central_on_ble_evt(ble_evt_t * p_ble_evt)
     }
 }
 
-void ble_nus_c_evt_handler(ble_nus_c_t * p_ble_nus_c, const ble_nus_c_evt_t * p_ble_nus_evt)
+static void ble_nus_c_evt_handler(ble_nus_c_t * p_ble_nus_c, const ble_nus_c_evt_t * p_ble_nus_evt)
 {
     uint32_t err_code;
 
@@ -191,4 +235,20 @@ void ble_nus_c_evt_handler(ble_nus_c_t * p_ble_nus_c, const ble_nus_c_evt_t * p_
     }
 }
 
+  
+/**@brief Function for dispatching a BLE stack event to all modules with a BLE stack event handler.
+ *
+ * @details This function is called from the scheduler in the main loop after a BLE stack event has
+ *  been received.
+ *
+ * @param[in]   p_ble_evt   Bluetooth stack event.
+ */
+static void ble_evt_dispatch(ble_evt_t * p_ble_evt)
+{
+    central_on_ble_evt(p_ble_evt);  
+    ble_db_discovery_on_ble_evt(&m_ble_db_discovery, p_ble_evt);
+    ble_nus_c_on_ble_evt(&m_ble_nus_c,p_ble_evt);
+}
+  
+  
 
