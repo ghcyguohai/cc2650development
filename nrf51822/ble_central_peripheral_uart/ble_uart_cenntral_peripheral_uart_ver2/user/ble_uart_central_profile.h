@@ -5,7 +5,7 @@
 #define BLE_UART_CENTRAL_PROFILE_H
 
 #include "ble_nus_c.h"
-
+#include "app_uart.h"
 
     /**< Determines supervision time-out in units of 10 milliseconds. */
 #define SCAN_INTERVAL           0x00A0                          /**< Determines scan interval in units of 0.625 millisecond. */
@@ -40,5 +40,9 @@ static void central_on_ble_evt(ble_evt_t * p_ble_evt);
 static void ble_nus_c_evt_handler(ble_nus_c_t * p_ble_nus_c, const ble_nus_c_evt_t * p_ble_nus_evt);
 
 static void ble_evt_dispatch(ble_evt_t * p_ble_evt);
+
+static void uart_init(void);
+
+void uart_event_handle(app_uart_evt_t * p_event);
 
 #endif

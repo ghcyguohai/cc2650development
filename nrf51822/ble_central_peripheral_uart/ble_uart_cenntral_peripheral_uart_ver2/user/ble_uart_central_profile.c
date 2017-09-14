@@ -11,6 +11,9 @@
 #include "pca10028.h"
 #include "app_trace.h"
 
+#define UART_TX_BUF_SIZE        256                             /**< UART TX buffer size. */
+#define UART_RX_BUF_SIZE        256                             /**< UART RX buffer size. */
+
 
 
 ble_db_discovery_t                m_ble_db_discovery;                           
@@ -46,6 +49,7 @@ static const ble_gap_conn_params_t m_connection_param =
 void ble_central_mode(void)
 {
     uint32_t err_code;
+    uart_init();
     ble_stack_init();
     db_discovery_init();
     err_code = ble_db_discovery_init();
@@ -250,5 +254,73 @@ static void ble_evt_dispatch(ble_evt_t * p_ble_evt)
     ble_nus_c_on_ble_evt(&m_ble_nus_c,p_ble_evt);
 }
   
-  
+/**@brief Function for initializing the UART.
+ */
+static void uart_init(void)
+{
+    uint32_t err_code;
+
+    const app_uart_comm_params_t comm_params =
+      {
+         .rx_pin_no    = 11,
+         .tx_pin_no    = 9,
+        .rts_pin_no   = 10,
+        .cts_pin_no   = 8,
+        .flow_control = APP_UART_FLOW_CONTROL_DISABLED,
+        .use_parity   = false,
+        .baud_rate    = UART_BAUDRATE_BAUDRATE_Baud115200
+      };
+
+    APP_UART_FIFO_INIT(&comm_params,
+                        UART_RX_BUF_SIZE,
+                        UART_TX_BUF_SIZE,
+                        uart_event_handle,
+                        APP_IRQ_PRIORITY_LOW,
+                        err_code);
+
+    APP_ERROR_CHECK(err_code);
+}
+
+
+/**@brief   Function for handling app_uart events.
+ *
+ * @details This function will receive a single character from the app_uart module and append it to 
+ *          a string. The string will be be sent over BLE when the last character received was a 
+ *          'new line' i.e '\n' (hex 0x0D) or if the string has reached a length of 
+ *          @ref NUS_MAX_DATA_LENGTH.
+ */
+void uart_event_handle(app_uart_evt_t * p_event)
+{
+    static uint8_t data_array[BLE_NUS_MAX_DATA_LEN];
+    static uint8_t index = 0;
+
+    switch (p_event->evt_type)
+    {
+        /**@snippet [Handling data from UART] */ 
+        case APP_UART_DATA_READY:
+            UNUSED_VARIABLE(app_uart_get(&data_array[index]));
+            index++;
+
+            if ((data_array[index - 1] == '\n') || (index >= (BLE_NUS_MAX_DATA_LEN)))
+            {
+                while (ble_nus_c_string_send(&m_ble_nus_c, data_array, index) != NRF_SUCCESS)			
+                {
+                    // repeat until sent
+                }
+                index = 0;
+            }
+            break;
+        /**@snippet [Handling data from UART] */ 
+        case APP_UART_COMMUNICATION_ERROR:
+            APP_ERROR_HANDLER(p_event->data.error_communication);
+            break;
+
+        case APP_UART_FIFO_ERROR:
+            APP_ERROR_HANDLER(p_event->data.error_code);
+            break;
+
+        default:
+            break;
+    }
+}  
 
