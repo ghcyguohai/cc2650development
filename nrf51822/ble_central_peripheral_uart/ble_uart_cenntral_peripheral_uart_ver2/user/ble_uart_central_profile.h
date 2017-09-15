@@ -7,15 +7,7 @@
 #include "ble_nus_c.h"
 #include "app_uart.h"
 
-    /**< Determines supervision time-out in units of 10 milliseconds. */
-#define SCAN_INTERVAL           0x00A0                          /**< Determines scan interval in units of 0.625 millisecond. */
-#define SCAN_WINDOW             0x0050                          /**< Determines scan window in units of 0.625 millisecond. */
-#define SCAN_ACTIVE             1                               /**< If 1, performe active scanning (scan requests). */
-#define SCAN_SELECTIVE          0                               /**< If 1, ignore unknown devices (non whitelisted). */
-#define SCAN_TIMEOUT            0x0000                          /**< */
-#define MIN_CONNECTION_INTERVAL MSEC_TO_UNITS(8, UNIT_1_25_MS) /**< Determines minimum connection interval in millisecond. */
-#define MAX_CONNECTION_INTERVAL MSEC_TO_UNITS(75, UNIT_1_25_MS) /**< Determines maximum connection interval in millisecond. */
-#define SUPERVISION_TIMEOUT     MSEC_TO_UNITS(4000, UNIT_10_MS) /**< Determines supervision time-out in units of 10 millisecond. */
+
          
 
 /**@brief Variable length data encapsulation in terms of length and pointer to data. */
@@ -43,6 +35,12 @@ static void ble_evt_dispatch(ble_evt_t * p_ble_evt);
 
 static void uart_init(void);
 
-void uart_event_handle(app_uart_evt_t * p_event);
+static void central_uart_event_handle(app_uart_evt_t * p_event);
+
+       void ble_central_send(void);
+
+       void ble_central_connection_state(void);
+       
+    uint8_t ble_central_con_status(void);
 
 #endif

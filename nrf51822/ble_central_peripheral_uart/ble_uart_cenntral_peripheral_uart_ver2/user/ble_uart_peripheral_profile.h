@@ -24,7 +24,6 @@ static void ble_stack_init(void);
 
 static void nus_data_handler(ble_nus_t * p_nus, uint8_t * p_data, uint16_t length);
 
-
 static void advertising_init(void);
 
 static void services_init(void);
@@ -35,8 +34,13 @@ static void peripheral_on_ble_evt(ble_evt_t * p_ble_evt);
 
 static void uart_init(void);
 
-static void uart_event_handle(app_uart_evt_t * p_event);
+static void periph_uart_event_handle(app_uart_evt_t * p_event);
 
+       void ble_periph_send(void);
+       
+       void ble_periph_connection_state(void);
+
+    uint8_t ble_periph_con_status(void);
 #endif
 
 

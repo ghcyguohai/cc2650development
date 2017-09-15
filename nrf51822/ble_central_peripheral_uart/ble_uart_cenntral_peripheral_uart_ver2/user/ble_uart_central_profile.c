@@ -10,14 +10,27 @@
 #include "app_uart.h"
 #include "pca10028.h"
 #include "app_trace.h"
-
-#define UART_TX_BUF_SIZE        256                             /**< UART TX buffer size. */
-#define UART_RX_BUF_SIZE        256                             /**< UART RX buffer size. */
+#include "Ble_Passthrough_Handle.h"
 
 
+/**< Determines supervision time-out in units of 10 milliseconds. */
+#define SCAN_INTERVAL           0x00A0                          /**< Determines scan interval in units of 0.625 millisecond. */
+#define SCAN_WINDOW             0x0050                          /**< Determines scan window in units of 0.625 millisecond. */
+#define SCAN_ACTIVE             1                               /**< If 1, performe active scanning (scan requests). */
+#define SCAN_SELECTIVE          0                               /**< If 1, ignore unknown devices (non whitelisted). */
+#define SCAN_TIMEOUT            0x0000                          /**< */
+#define MIN_CONNECTION_INTERVAL MSEC_TO_UNITS(7.5, UNIT_1_25_MS) /**< Determines minimum connection interval in millisecond. */
+#define MAX_CONNECTION_INTERVAL MSEC_TO_UNITS(20, UNIT_1_25_MS) /**< Determines maximum connection interval in millisecond. */
+#define SUPERVISION_TIMEOUT     MSEC_TO_UNITS(500, UNIT_10_MS) /**< Determines supervision time-out in units of 10 millisecond. */
 
-ble_db_discovery_t                m_ble_db_discovery;                           
-ble_nus_c_t                        m_ble_nus_c;
+#define UART_TX_BUF_SIZE        512                             /**< UART TX buffer size. */
+#define UART_RX_BUF_SIZE        512                             /**< UART RX buffer size. */ 
+
+ble_db_discovery_t              m_ble_db_discovery;                           
+ble_nus_c_t                     m_ble_nus_c;
+
+static  uint8_t                 central_tx_count=0;
+static  uint8_t                 ble_central_con_flag=0;
 static const uint8_t peripheral_addr[6]={0x7A,0xF6,0xAF,0x92,0x77,0xE5};
 
 
@@ -167,17 +180,30 @@ static void central_on_ble_evt(ble_evt_t * p_ble_evt)
         }
         
         case BLE_GAP_EVT_CONNECTED:
-            app_trace_log("Connected to target\r\n");
-          //  err_code = bsp_indication_set(BSP_INDICATE_CONNECTED);
-            APP_ERROR_CHECK(err_code);
             
             m_ble_nus_c.conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
             app_trace_log("target handle=%x\r\n",m_ble_nus_c.conn_handle);
             // start discovery of services. The NUS Client waits for a discovery result
             err_code = ble_db_discovery_start(&m_ble_db_discovery, p_ble_evt->evt.gap_evt.conn_handle);
             APP_ERROR_CHECK(err_code);
+            ble_central_con_flag=1;
+            app_trace_log("BLE_GAP_EVT_CONNECTED\r\n");
             break;
     
+        case BLE_GAP_EVT_DISCONNECTED:
+        
+             ble_central_con_flag=0;
+             app_trace_log("BLE_GAP_EVT_DISCONNECTED\r\n");
+        break;
+
+
+        case BLE_EVT_TX_COMPLETE:
+                //central_tx_count=0;
+                CounterReset_UartTimer();
+                ble_central_send();
+        break;
+        
+        
         case BLE_GAP_EVT_TIMEOUT:
             if (p_gap_evt->params.timeout.src == BLE_GAP_TIMEOUT_SRC_SCAN)
             {
@@ -274,7 +300,7 @@ static void uart_init(void)
     APP_UART_FIFO_INIT(&comm_params,
                         UART_RX_BUF_SIZE,
                         UART_TX_BUF_SIZE,
-                        uart_event_handle,
+                        central_uart_event_handle,
                         APP_IRQ_PRIORITY_LOW,
                         err_code);
 
@@ -289,28 +315,23 @@ static void uart_init(void)
  *          'new line' i.e '\n' (hex 0x0D) or if the string has reached a length of 
  *          @ref NUS_MAX_DATA_LENGTH.
  */
-void uart_event_handle(app_uart_evt_t * p_event)
+static void central_uart_event_handle(app_uart_evt_t * p_event)
 {
-    static uint8_t data_array[BLE_NUS_MAX_DATA_LEN];
-    static uint8_t index = 0;
-
+   uint8_t temp=0;
+   // uart_printf("x%",p_event->evt_type);
     switch (p_event->evt_type)
     {
-        /**@snippet [Handling data from UART] */ 
-        case APP_UART_DATA_READY:
-            UNUSED_VARIABLE(app_uart_get(&data_array[index]));
-            index++;
-
-            if ((data_array[index - 1] == '\n') || (index >= (BLE_NUS_MAX_DATA_LEN)))
+        case APP_UART_DATA_READY:    
+           
+            app_uart_get(&temp); 
+            Ble_TxFifo_DataPush(&temp,1);
+            if(Ble_TxFifo_Datalen()<512)
             {
-                while (ble_nus_c_string_send(&m_ble_nus_c, data_array, index) != NRF_SUCCESS)			
-                {
-                    // repeat until sent
-                }
-                index = 0;
+               ClearCounter_UartTimer();
             }
+            
             break;
-        /**@snippet [Handling data from UART] */ 
+        
         case APP_UART_COMMUNICATION_ERROR:
             APP_ERROR_HANDLER(p_event->data.error_communication);
             break;
@@ -318,9 +339,41 @@ void uart_event_handle(app_uart_evt_t * p_event)
         case APP_UART_FIFO_ERROR:
             APP_ERROR_HANDLER(p_event->data.error_code);
             break;
-
+        
         default:
             break;
     }
 }  
 
+void ble_central_send(void)
+{
+     uint16_t len=0;
+     uint32_t err_code=0;   
+     static   uint8_t ble_txbuf[20]={0};
+     do
+     {
+        len=Ble_TxFifo_Datalen();
+        if(len>20)
+            len=20;
+        sd_ble_tx_buffer_count_get(&central_tx_count); 
+        if(len>0)
+        {
+            sd_ble_tx_buffer_count_get(&central_tx_count); 
+            Ble_TxFifo_DataPop(ble_txbuf,len);
+            err_code=ble_nus_c_string_send(&m_ble_nus_c,ble_txbuf,len);
+            central_tx_count++;
+        }
+    }while((err_code==NRF_SUCCESS)&&(len>0)&&(central_tx_count<7));
+}
+
+void ble_central_connection_state(void)
+{
+
+
+
+}
+
+uint8_t ble_central_con_status(void)
+{
+    return ble_central_con_flag;
+}

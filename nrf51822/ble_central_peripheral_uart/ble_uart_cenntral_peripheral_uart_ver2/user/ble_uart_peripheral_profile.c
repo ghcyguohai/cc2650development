@@ -4,6 +4,8 @@
 #include "ble_conn_params.h"
 #include "app_uart.h"
 #include "ble_hci.h"
+#include "Ble_Passthrough_Handle.h"
+#include "app_trace.h"
 
 
 #define IS_SRVC_CHANGED_CHARACT_PRESENT 0   
@@ -11,28 +13,31 @@
 
 
 #define APP_TIMER_PRESCALER             0
-#define MIN_CONN_INTERVAL               MSEC_TO_UNITS(20, UNIT_1_25_MS)             /**< Minimum acceptable connection interval (20 ms), Connection interval uses 1.25 ms units. */
-#define MAX_CONN_INTERVAL               MSEC_TO_UNITS(75, UNIT_1_25_MS)             /**< Maximum acceptable connection interval (75 ms), Connection interval uses 1.25 ms units. */
-#define SLAVE_LATENCY                   0                                           /**< Slave latency. */
-#define CONN_SUP_TIMEOUT                MSEC_TO_UNITS(4000, UNIT_10_MS)
+#define MIN_CONN_INTERVAL               MSEC_TO_UNITS(7.5, UNIT_1_25_MS)             /**< Minimum acceptable connection interval (20 ms), Connection interval uses 1.25 ms units. */
+#define MAX_CONN_INTERVAL               MSEC_TO_UNITS(20, UNIT_1_25_MS)            /**< Maximum acceptable connection interval (75 ms), Connection interval uses 1.25 ms units. */
+#define SLAVE_LATENCY                   0                                          /**< Slave latency. */
+#define CONN_SUP_TIMEOUT                MSEC_TO_UNITS(250, UNIT_10_MS)
 
 
-#define FIRST_CONN_PARAMS_UPDATE_DELAY  APP_TIMER_TICKS(5000, APP_TIMER_PRESCALER)  /**< Time from initiating event (connect or start of notification) to first time sd_ble_gap_conn_param_update is called (5 seconds). */
-#define NEXT_CONN_PARAMS_UPDATE_DELAY   APP_TIMER_TICKS(30000, APP_TIMER_PRESCALER) /**< Time between each call to sd_ble_gap_conn_param_update after the first call (30 seconds). */
+#define FIRST_CONN_PARAMS_UPDATE_DELAY  APP_TIMER_TICKS(250, APP_TIMER_PRESCALER)  /**< Time from initiating event (connect or start of notification) to first time sd_ble_gap_conn_param_update is called (5 seconds). */
+#define NEXT_CONN_PARAMS_UPDATE_DELAY   APP_TIMER_TICKS(500, APP_TIMER_PRESCALER)  /**< Time between each call to sd_ble_gap_conn_param_update after the first call (30 seconds). */
 #define MAX_CONN_PARAMS_UPDATE_COUNT    3  
 
 #define APP_ADV_INTERVAL                64                                          /**< The advertising interval (in units of 0.625 ms. This value corresponds to 40 ms). */
 #define APP_ADV_TIMEOUT_IN_SECONDS      180   
 
-#define NUS_SERVICE_UUID_TYPE           BLE_UUID_TYPE_VENDOR_BEGIN      /**< UUID type for the Nordic UART Service (vendor specific). */
-
-#define UART_TX_BUF_SIZE        256                             /**< UART TX buffer size. */
-#define UART_RX_BUF_SIZE        256                             /**< UART RX buffer size. */
+#define NUS_SERVICE_UUID_TYPE           BLE_UUID_TYPE_VENDOR_BEGIN                  /**< UUID type for the Nordic UART Service (vendor specific). */
+            
+#define UART_TX_BUF_SIZE                512                                         /**< UART TX buffer size. */
+#define UART_RX_BUF_SIZE                512                                         /**< UART RX buffer size. */
 
 
 static ble_nus_t                        m_nus; 
 static uint16_t                         m_conn_handle = BLE_CONN_HANDLE_INVALID;    /**< Handle of the current connection. */
 static ble_uuid_t                       m_adv_uuids[] = {{BLE_UUID_NUS_SERVICE, NUS_SERVICE_UUID_TYPE}};  /**< Universally unique service identifier. */
+
+static  uint8_t     periph_tx_count=0;
+static  uint8_t     ble_periph_con_flag=0;
 
 void ble_periph_mode(void)
 {
@@ -211,7 +216,6 @@ static void services_init(void)
  */
 static void ble_evt_dispatch(ble_evt_t * p_ble_evt)
 {
-  //  printf("p_ble_evt=%x\r\n",p_ble_evt->header.evt_id);
     ble_conn_params_on_ble_evt(p_ble_evt);
     ble_nus_on_ble_evt(&m_nus, p_ble_evt);
     peripheral_on_ble_evt(p_ble_evt);
@@ -227,11 +231,15 @@ static void peripheral_on_ble_evt(ble_evt_t * p_ble_evt)
         case BLE_GAP_EVT_CONNECTED:
 
             m_conn_handle = p_ble_evt->evt.gap_evt.conn_handle;
+            ble_periph_con_flag=1;
+            app_trace_log("BLE_GAP_EVT_CONNECTED\r\n");
             break;
             
         case BLE_GAP_EVT_DISCONNECTED:
 
             m_conn_handle = BLE_CONN_HANDLE_INVALID;
+            ble_periph_con_flag=0;
+            app_trace_log("BLE_GAP_EVT_DISCONNECTED\r\n");
             break;
 
         case BLE_GAP_EVT_SEC_PARAMS_REQUEST:
@@ -246,6 +254,13 @@ static void peripheral_on_ble_evt(ble_evt_t * p_ble_evt)
             APP_ERROR_CHECK(err_code);
             break;
 
+        case BLE_EVT_TX_COMPLETE:
+            
+            CounterReset_UartTimer();
+            ble_periph_send();
+      
+        break;
+        
         default:
             // No implementation needed.
             break;
@@ -272,7 +287,7 @@ static void uart_init(void)
     APP_UART_FIFO_INIT(&comm_params,
                         UART_RX_BUF_SIZE,
                         UART_TX_BUF_SIZE,
-                        uart_event_handle,
+                        periph_uart_event_handle,
                         APP_IRQ_PRIORITY_LOW,
                         err_code);
 
@@ -288,30 +303,23 @@ static void uart_init(void)
  *          @ref NUS_MAX_DATA_LENGTH.
  */
 /**@snippet [Handling the data received over UART] */
-void uart_event_handle(app_uart_evt_t * p_event)
+void periph_uart_event_handle(app_uart_evt_t * p_event)
 {
-    static uint8_t data_array[BLE_NUS_MAX_DATA_LEN];
-    static uint8_t index = 0;
-    uint32_t       err_code;
+   uint8_t temp=0;
 
     switch (p_event->evt_type)
     {
-        case APP_UART_DATA_READY:
-            UNUSED_VARIABLE(app_uart_get(&data_array[index]));
-            index++;
-
-            if ((data_array[index - 1] == '\n') || (index >= (BLE_NUS_MAX_DATA_LEN)))
+        case APP_UART_DATA_READY:    
+            
+            app_uart_get(&temp); 
+            Ble_TxFifo_DataPush(&temp,1);
+            if(Ble_TxFifo_Datalen()<512)
             {
-                err_code = ble_nus_string_send(&m_nus, data_array, index);
-                if (err_code != NRF_ERROR_INVALID_STATE)
-                {
-                    APP_ERROR_CHECK(err_code);
-                }
-                
-                index = 0;
+               ClearCounter_UartTimer();
             }
+            
             break;
-
+        
         case APP_UART_COMMUNICATION_ERROR:
             APP_ERROR_HANDLER(p_event->data.error_communication);
             break;
@@ -319,9 +327,40 @@ void uart_event_handle(app_uart_evt_t * p_event)
         case APP_UART_FIFO_ERROR:
             APP_ERROR_HANDLER(p_event->data.error_code);
             break;
-
+        
         default:
             break;
     }
 }
 
+void ble_periph_send(void)
+{
+     uint16_t len=0;
+     uint32_t err_code=0;   
+     static   uint8_t ble_txbuf[20]={0};
+     do
+     {
+        len=Ble_TxFifo_Datalen();
+        if(len>20)
+            len=20;
+        
+        if(len>0)
+        {
+            sd_ble_tx_buffer_count_get(&periph_tx_count); 
+            Ble_TxFifo_DataPop(ble_txbuf,len);
+            err_code=ble_nus_string_send(&m_nus,ble_txbuf,len);
+            periph_tx_count++;
+        }
+    }while((err_code==NRF_SUCCESS)&&(len>0)&&(periph_tx_count<7));
+}
+
+void ble_periph_connection_state(void)
+{
+
+
+}
+
+uint8_t ble_periph_con_status(void)
+{
+    return  ble_periph_con_flag;  
+}
